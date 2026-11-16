@@ -1,0 +1,1901 @@
+<title>Chip Design for CS Students</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@75..125,500..800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: a single reading column (~68ch) with wide figure plates that break out to ~1080px; a die-shot palette of cool silicon greys with copper traces. */
+:root {
+  --bg: #f3f5f8;
+  --surface: #ffffff;
+  --sunk: #e8ecf2;
+  --ink: #18202f;
+  --muted: #5b6577;
+  --line: #d3dae5;
+  --copper: #b0531c;
+  --copper-soft: #f5e3d6;
+  --ok: #1d7f4f;
+  --bad: #bf3a31;
+  /* layout layers */
+  --l-diff: #3f9b62;
+  --l-poly: #cf4a3c;
+  --l-metal: #3a6fd8;
+  --l-well: #e9eef8;
+  /* agent colours (from the keynote slide) */
+  --c-prof: #2763c9;
+  --c-ver: #34406b;
+  --c-xf: #3c8f2f;
+  --c-opt: #d23a2c;
+  --c-orch: #e7c766;
+  --c-orch-soft: #fbf3d9;
+  --display: "Archivo", "Arial Narrow", system-ui, sans-serif;
+  --body: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, "Cascadia Code", Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f141d; --surface: #161d29; --sunk: #1d2635; --ink: #e5eaf2; --muted: #98a3b6; --line: #2b3548;
+    --copper: #e48b52; --copper-soft: #3b2619; --ok: #4cc286; --bad: #f07067;
+    --l-diff: #4fb276; --l-poly: #e56a5c; --l-metal: #6f97f0; --l-well: #1c2533;
+    --c-prof: #5b8ef0; --c-ver: #8d9bd0; --c-xf: #69b85a; --c-opt: #ef6a5c; --c-orch: #e7c766; --c-orch-soft: #3a3320;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f141d; --surface: #161d29; --sunk: #1d2635; --ink: #e5eaf2; --muted: #98a3b6; --line: #2b3548;
+  --copper: #e48b52; --copper-soft: #3b2619; --ok: #4cc286; --bad: #f07067;
+  --l-diff: #4fb276; --l-poly: #e56a5c; --l-metal: #6f97f0; --l-well: #1c2533;
+  --c-prof: #5b8ef0; --c-ver: #8d9bd0; --c-xf: #69b85a; --c-opt: #ef6a5c; --c-orch: #e7c766; --c-orch-soft: #3a3320;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } * { transition: none !important; animation: none !important; } }
+body {
+  background: var(--bg); color: var(--ink);
+  font: 16px/1.65 var(--body);
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.wrap { max-width: 1080px; margin: 0 auto; padding-block: 24px 80px; }
+.col { max-width: 70ch; }
+h1, h2, h3 { font-family: var(--display); text-wrap: balance; line-height: 1.12; margin: 0; }
+h1 { font-size: clamp(2.2rem, 6vw, 3.9rem); font-weight: 800; font-stretch: 85%; letter-spacing: -0.01em; }
+h2 { font-size: clamp(1.6rem, 3.6vw, 2.3rem); font-weight: 750; font-stretch: 90%; }
+h3 { font-size: 1.18rem; font-weight: 700; }
+p { margin: 0; }
+a { color: var(--copper); }
+code, .mono { font-family: var(--mono); font-size: 0.88em; }
+:focus-visible { outline: 2px solid var(--copper); outline-offset: 2px; border-radius: 4px; }
+
+.eyebrow { font: 600 0.74rem/1 var(--mono); letter-spacing: 0.12em; text-transform: uppercase; color: var(--copper); }
+.lede { font-size: 1.15rem; color: var(--muted); }
+.stack { display: grid; gap: 16px; }
+
+/* header */
+header.hero { display: grid; gap: 20px; padding-block: 24px 8px; }
+.hero .meta { display: flex; flex-wrap: wrap; gap: 8px 18px; font: 0.82rem var(--mono); color: var(--muted); }
+nav.toc { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+nav.toc a { text-decoration: none; color: var(--ink); border: 1px solid var(--line); background: var(--surface); padding: 6px 12px; border-radius: 999px; font-size: 0.86rem; }
+nav.toc a:hover { border-color: var(--copper); color: var(--copper); }
+
+section { display: grid; gap: 20px; padding-top: 72px; }
+section > header { display: grid; gap: 10px; }
+
+/* figures */
+figure { margin: 0; display: grid; gap: 10px; min-width: 0; }
+.plate { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 18px; overflow-x: auto; }
+.plate svg { display: block; width: 100%; height: auto; min-width: 280px; }
+figcaption { font-size: 0.86rem; color: var(--muted); }
+figcaption b { color: var(--ink); font-weight: 600; }
+.figno { font: 600 0.72rem var(--mono); color: var(--copper); letter-spacing: 0.08em; margin-right: 6px; }
+.grid2 { display: grid; gap: 20px; grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr)); }
+.grid3 { display: grid; gap: 20px; grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr)); }
+
+/* svg vocabulary */
+.w { stroke: var(--ink); stroke-width: 1.6; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.w-thin { stroke: var(--muted); stroke-width: 1; fill: none; }
+.w-dash { stroke: var(--muted); stroke-width: 1; fill: none; stroke-dasharray: 3 4; }
+.w-acc { stroke: var(--copper); stroke-width: 2.2; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.f-surf { fill: var(--surface); stroke: var(--ink); stroke-width: 1.6; }
+.f-sunk { fill: var(--sunk); stroke: var(--line); stroke-width: 1; }
+.f-soft { fill: var(--copper-soft); stroke: var(--copper); stroke-width: 1.4; }
+.f-acc { fill: var(--copper); }
+.f-ink { fill: var(--ink); }
+.t { fill: var(--ink); font: 12px var(--mono); }
+.t-s { fill: var(--muted); font: 10.5px var(--mono); }
+.t-b { fill: var(--ink); font: 700 13px var(--display); }
+.t-acc { fill: var(--copper); font: 600 12px var(--mono); }
+.t-mid { text-anchor: middle; }
+.l-diff { fill: var(--l-diff); opacity: .85; }
+.l-poly { fill: var(--l-poly); opacity: .9; }
+.l-metal { fill: var(--l-metal); opacity: .75; }
+.l-well { fill: var(--l-well); stroke: var(--line); }
+.mk { fill: var(--ink); }
+.mk-acc { fill: var(--copper); }
+
+/* interactive: abstraction explorer */
+.explorer { display: grid; gap: 18px; grid-template-columns: minmax(200px, 260px) 1fr; align-items: start; }
+@media (max-width: 720px) { .explorer { grid-template-columns: 1fr; } }
+.layers { display: grid; gap: 6px; }
+.layers button {
+  text-align: left; font: 500 0.95rem var(--body); color: var(--ink); background: var(--surface);
+  border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; cursor: pointer;
+  display: flex; justify-content: space-between; gap: 8px; align-items: center;
+}
+.layers button span.lvl { font: 0.72rem var(--mono); color: var(--muted); }
+.layers button[aria-pressed="true"] { border-color: var(--copper); background: var(--copper-soft); }
+.layers button:hover { border-color: var(--copper); }
+.detail { display: grid; gap: 14px; min-width: 0; }
+.kv { display: grid; grid-template-columns: max-content 1fr; gap: 6px 14px; font-size: 0.93rem; }
+.kv dt { font: 600 0.74rem var(--mono); color: var(--muted); text-transform: uppercase; letter-spacing: .06em; padding-top: 3px; }
+.kv dd { margin: 0; min-width: 0; }
+
+/* flow stepper */
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--surface); }
+.seg button { font: 600 0.85rem var(--body); padding: 8px 16px; border: 0; background: transparent; color: var(--ink); cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
+.flow-strip { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px; }
+.flow-strip button {
+  flex: 1 0 104px; font: 600 0.8rem var(--body); color: var(--ink); background: var(--surface);
+  border: 1px solid var(--line); border-radius: 8px; padding: 10px 8px; cursor: pointer; text-align: left;
+  display: grid; gap: 4px;
+}
+.flow-strip button small { font: 0.68rem var(--mono); color: var(--muted); }
+.flow-strip button[aria-current="step"] { border-color: var(--copper); background: var(--copper-soft); }
+.flow-card { display: grid; gap: 12px; grid-template-columns: 1fr 1fr; }
+@media (max-width: 720px) { .flow-card { grid-template-columns: 1fr; } }
+.flow-card > div { min-width: 0; }
+.btnrow { display: flex; gap: 8px; flex-wrap: wrap; }
+.btn { font: 600 0.85rem var(--body); padding: 8px 14px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); cursor: pointer; }
+.btn:hover { border-color: var(--copper); }
+.btn:disabled { opacity: .45; cursor: default; }
+
+/* pipeline calculator */
+.calc { display: grid; gap: 18px; grid-template-columns: minmax(220px, 300px) 1fr; }
+@media (max-width: 760px) { .calc { grid-template-columns: minmax(0, 1fr); } }
+.calc > div { min-width: 0; }
+.ctl { display: grid; gap: 4px; }
+.ctl label { display: flex; justify-content: space-between; font-size: 0.88rem; }
+.ctl output { font: 600 0.88rem var(--mono); color: var(--copper); font-variant-numeric: tabular-nums; }
+.ctl input[type=range] { width: 100%; accent-color: var(--copper); }
+.stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.stat span { overflow-wrap: anywhere; }
+.stat { background: var(--sunk); border-radius: 8px; padding: 10px 12px; display: grid; gap: 2px; }
+.stat b { font: 700 1.35rem var(--display); font-variant-numeric: tabular-nums; }
+.stat span { font: 0.7rem var(--mono); color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+
+/* curriculum */
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { font: 500 0.84rem var(--body); padding: 6px 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); cursor: pointer; }
+.chip[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.progress { display: flex; align-items: center; gap: 12px; font: 0.85rem var(--mono); color: var(--muted); }
+.bar { flex: 1; height: 8px; background: var(--sunk); border-radius: 99px; overflow: hidden; max-width: 320px; }
+.bar i { display: block; height: 100%; background: var(--copper); width: 0; transition: width .3s; }
+.modules { display: grid; gap: 12px; }
+.mod { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; display: grid; grid-template-columns: 112px 1fr; overflow: hidden; }
+@media (max-width: 560px) { .mod { grid-template-columns: 1fr; } .mod .thumb { border-right: 0 !important; border-bottom: 1px solid var(--line); } }
+.mod .thumb { background: var(--sunk); border-right: 1px solid var(--line); display: grid; place-items: center; padding: 10px; }
+.mod .thumb svg { width: 88px; height: 64px; }
+.mod .body { padding: 14px 16px; display: grid; gap: 8px; min-width: 0; }
+.mod .top { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: baseline; justify-content: space-between; }
+.mod .tags { display: flex; gap: 6px; flex-wrap: wrap; }
+.tag { font: 0.7rem var(--mono); padding: 2px 8px; border-radius: 99px; background: var(--sunk); color: var(--muted); }
+.tag.track { background: var(--copper-soft); color: var(--copper); }
+.mod ul { margin: 0; padding-left: 18px; font-size: 0.92rem; }
+.mod .lab { font-size: 0.9rem; border-top: 1px dashed var(--line); padding-top: 8px; }
+.mod .lab b { font: 600 0.72rem var(--mono); color: var(--copper); letter-spacing: .06em; margin-right: 6px; }
+.mod label.done { display: inline-flex; gap: 6px; align-items: center; font-size: 0.82rem; color: var(--muted); cursor: pointer; }
+.mod.is-done { opacity: .72; }
+
+table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+th, td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font: 600 0.72rem var(--mono); text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+.tablewrap { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; }
+
+.weights { display: flex; height: 34px; border-radius: 8px; overflow: hidden; font: 600 0.75rem var(--mono); }
+.weights div { display: grid; place-items: center; color: var(--bg); min-width: 0; white-space: nowrap; overflow: hidden; }
+
+/* agent section */
+.agent-diagram g.node { cursor: pointer; }
+.agent-diagram g.node:hover rect.box, .agent-diagram g.node:focus rect.box { stroke-width: 3; }
+.agent-diagram g.node[aria-pressed="true"] rect.box { stroke-width: 3.5; }
+.agent-panel { background: var(--surface); border: 1px solid var(--line); border-left: 5px solid var(--copper); border-radius: 10px; padding: 16px 18px; display: grid; gap: 10px; }
+.toolchips { display: flex; flex-wrap: wrap; gap: 6px; }
+.toolchips code { background: var(--sunk); padding: 2px 8px; border-radius: 6px; }
+.run { display: grid; gap: 12px; }
+.run-step { display: grid; grid-template-columns: 1fr; gap: 10px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px 18px; }
+.run-step pre { margin: 0; background: var(--sunk); border-radius: 8px; padding: 12px; overflow-x: auto; font: 0.8rem/1.5 var(--mono); }
+.who { font: 600 0.75rem var(--mono); padding: 3px 9px; border-radius: 99px; color: #fff; justify-self: start; }
+.verdict-ok { color: var(--ok); font-weight: 600; }
+.verdict-bad { color: var(--bad); font-weight: 600; }
+.pros { display: grid; gap: 20px; grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr)); }
+.pros > div { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px 18px; display: grid; gap: 8px; align-content: start; }
+.pros ul { margin: 0; padding-left: 18px; display: grid; gap: 6px; font-size: 0.93rem; }
+
+/* cloud */
+.tabs { display: flex; gap: 6px; flex-wrap: wrap; border-bottom: 1px solid var(--line); }
+.tabs button { font: 600 0.92rem var(--body); color: var(--muted); background: none; border: 0; border-bottom: 3px solid transparent; padding: 10px 14px; cursor: pointer; margin-bottom: -1px; }
+.tabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--copper); }
+.prov { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(min(250px, 100%), 1fr)); }
+.prov .card { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; display: grid; gap: 6px; align-content: start; min-width: 0; }
+.prov .card h4 { margin: 0; font: 700 0.95rem var(--display); display: flex; justify-content: space-between; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+.prov .card p { font-size: 0.9rem; }
+.pill { font: 600 0.68rem var(--mono); padding: 2px 8px; border-radius: 99px; white-space: nowrap; }
+.pill.ok { background: color-mix(in srgb, var(--ok) 16%, transparent); color: var(--ok); }
+.pill.warn { background: var(--copper-soft); color: var(--copper); }
+.pill.no { background: color-mix(in srgb, var(--bad) 14%, transparent); color: var(--bad); }
+.checklist { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr)); }
+.checklist > div { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; display: grid; gap: 6px; align-content: start; font-size: 0.9rem; }
+.checklist b { font-family: var(--display); font-size: 0.98rem; }
+/* worked examples */
+.facts { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(min(200px, 100%), 1fr)); }
+.fact { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; display: grid; gap: 4px; align-content: start; }
+.fact b { font: 750 1.7rem/1.1 var(--display); font-stretch: 85%; color: var(--copper); font-variant-numeric: tabular-nums; }
+.fact span { font-size: 0.88rem; color: var(--muted); }
+.example { display: grid; gap: 14px; padding-top: 28px; }
+.example > h3 { font-size: 1.35rem; }
+.split { display: grid; gap: 18px; grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr)); align-items: start; }
+.split > * { min-width: 0; }
+pre.code { margin: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; overflow-x: auto; font: 0.84rem/1.6 var(--mono); }
+pre.code .c { color: var(--muted); }
+pre.code .k { color: var(--copper); font-weight: 600; }
+/* kit */
+.kitctl { display: flex; flex-wrap: wrap; gap: 14px 24px; align-items: end; }
+.kitctl .ctl { min-width: min(260px, 100%); }
+.tier { font: 600 0.8rem var(--mono); color: var(--copper); white-space: nowrap; }
+td.qty { font: 600 0.9rem var(--mono); font-variant-numeric: tabular-nums; text-align: right; }
+tr.stage td { background: var(--sunk); font: 600 0.78rem var(--mono); letter-spacing: .05em; text-transform: uppercase; color: var(--muted); }
+.sources { font-size: 0.82rem; color: var(--muted); display: grid; gap: 4px; margin: 0; padding-left: 18px; }
+
+/* quiz */
+.q { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px 18px; display: grid; gap: 10px; }
+.q .opts { display: grid; gap: 6px; }
+.q .opts button { text-align: left; font: 0.93rem var(--body); color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; cursor: pointer; }
+.q .opts button.right { border-color: var(--ok); color: var(--ok); font-weight: 600; }
+.q .opts button.wrong { border-color: var(--bad); color: var(--bad); }
+.q .fb { font-size: 0.9rem; color: var(--muted); }
+
+footer { margin-top: 72px; padding-top: 20px; border-top: 1px solid var(--line); font-size: 0.85rem; color: var(--muted); display: grid; gap: 6px; }
+</style>
+
+<!-- shared SVG defs -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="mk"/></marker>
+    <marker id="arr-acc" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="mk-acc"/></marker>
+  </defs>
+</svg>
+
+<div class="wrap">
+
+<header class="hero">
+  <span class="eyebrow">A course outline · for computer science students</span>
+  <h1>Chip Design for CS Students</h1>
+  <p class="lede col">How a loop you write in C becomes transistors on silicon, what a semester course on it should cover, and how an agentic tool like ChipDesignAgent automates part of that path.</p>
+
+  <figure>
+    <div class="plate">
+      <svg viewBox="0 0 780 190" role="img" aria-label="Five stages: C code, HLS code, RTL, gates, and a finished chip, connected by arrows">
+        <!-- 1 code -->
+        <rect x="8" y="22" width="136" height="118" rx="8" class="f-surf"/>
+        <text x="20" y="46" class="t-s">kernel.c</text>
+        <text x="20" y="68" class="t">for (i=0;i&lt;N;i++)</text>
+        <text x="20" y="86" class="t">  y[i] = a[i]</text>
+        <text x="20" y="104" class="t">       + b[i];</text>
+        <!-- 2 HLS -->
+        <rect x="166" y="22" width="136" height="118" rx="8" class="f-surf"/>
+        <text x="178" y="46" class="t-s">kernel_hls.cpp</text>
+        <text x="178" y="68" class="t-acc">#pragma HLS</text>
+        <text x="178" y="84" class="t-acc">  PIPELINE II=1</text>
+        <text x="178" y="104" class="t">y[i]=a[i]+b[i];</text>
+        <!-- 3 RTL -->
+        <rect x="324" y="22" width="136" height="118" rx="8" class="f-surf"/>
+        <text x="336" y="46" class="t-s">kernel.v</text>
+        <rect x="340" y="60" width="26" height="22" class="f-sunk"/>
+        <rect x="340" y="96" width="26" height="22" class="f-sunk"/>
+        <circle cx="400" cy="89" r="13" class="f-soft"/><text x="400" y="93" class="t t-mid">+</text>
+        <rect x="424" y="78" width="26" height="22" class="f-sunk"/>
+        <path d="M366 71 H380 L389 82 M366 107 H380 L389 96 M413 89 H424" class="w-thin"/>
+        <!-- 4 gates -->
+        <rect x="482" y="22" width="136" height="118" rx="8" class="f-surf"/>
+        <text x="494" y="46" class="t-s">netlist</text>
+        <path d="M506 58 h14 a12 12 0 0 1 0 24 h-14 z" class="f-sunk" style="stroke:var(--ink);stroke-width:1.4"/>
+        <path d="M506 96 q12 12 0 24 q20 0 32 -12 q-12 -12 -32 -12 z" class="f-sunk" style="stroke:var(--ink);stroke-width:1.4"/>
+        <path d="M560 78 l22 11 l-22 11 z" class="f-sunk" style="stroke:var(--ink);stroke-width:1.4"/><circle cx="585" cy="89" r="3" class="f-surf"/>
+        <path d="M532 70 H546 V84 H560 M538 108 H546 V94 H560 M588 89 H604" class="w-thin"/>
+        <!-- 5 chip -->
+        <rect x="640" y="22" width="132" height="118" rx="8" class="f-surf"/>
+        <g class="w-thin">
+          <path d="M676 44 v-8 M690 44 v-8 M704 44 v-8 M718 44 v-8 M732 44 v-8 M676 120 v8 M690 120 v8 M704 120 v8 M718 120 v8 M732 120 v8 M666 54 h-8 M666 68 h-8 M666 82 h-8 M666 96 h-8 M666 110 h-8 M744 54 h8 M744 68 h8 M744 82 h8 M744 96 h8 M744 110 h8"/>
+        </g>
+        <rect x="666" y="44" width="78" height="76" rx="3" class="f-soft"/>
+        <rect x="676" y="54" width="26" height="26" class="l-metal"/><rect x="708" y="54" width="26" height="14" class="l-diff"/><rect x="708" y="72" width="26" height="38" class="l-poly" style="opacity:.55"/><rect x="676" y="86" width="26" height="24" class="l-diff" style="opacity:.6"/>
+        <!-- arrows -->
+        <path d="M146 81 H162" class="w" marker-end="url(#arr)"/>
+        <path d="M304 81 H320" class="w" marker-end="url(#arr)"/>
+        <path d="M462 81 H478" class="w" marker-end="url(#arr)"/>
+        <path d="M620 81 H636" class="w" marker-end="url(#arr)"/>
+        <!-- labels -->
+        <text x="76" y="166" class="t-b t-mid">Software</text>
+        <text x="234" y="166" class="t-b t-mid">HLS</text>
+        <text x="392" y="166" class="t-b t-mid">RTL</text>
+        <text x="550" y="166" class="t-b t-mid">Gates</text>
+        <text x="706" y="166" class="t-b t-mid">Silicon</text>
+        <text x="234" y="182" class="t-s t-mid">high-level synthesis</text>
+        <text x="392" y="182" class="t-s t-mid">register transfer</text>
+        <text x="550" y="182" class="t-s t-mid">logic synthesis</text>
+        <text x="706" y="182" class="t-s t-mid">place &amp; route</text>
+      </svg>
+    </div>
+    <figcaption><span class="figno">FIG 1</span><b>The whole course in one picture.</b> Each arrow is a translation step done by a compiler-like tool. CS students already know the first box; the course teaches the other four.</figcaption>
+  </figure>
+
+  <nav class="toc" aria-label="Sections">
+    <a href="#why">Why it matters</a><a href="#examples">Code on silicon</a><a href="#stack">Abstraction stack</a><a href="#blocks">Building blocks</a>
+    <a href="#flow">Design flow</a><a href="#think">Thinking in hardware</a><a href="#course">Course plan</a>
+    <a href="#agent">The agent</a><a href="#cloud">Cloud tools</a><a href="#kit">Lab hardware</a><a href="#check">Self-check</a>
+  </nav>
+</header>
+
+<!-- ============================== WHY -->
+<section id="why">
+  <header>
+    <span class="eyebrow">01 · Motivation</span>
+    <h2>Why a programmer should learn chip design</h2>
+  </header>
+  <div class="col stack">
+    <p>For decades, software got faster for free: each new process node gave more transistors and higher clock speeds at the same power. That stopped around the mid-2000s, when Dennard scaling broke down and clock frequencies flattened. Performance gains since then come mostly from <b>parallelism</b> and <b>specialization</b>: GPUs, TPUs, video codecs, crypto engines and FPGA accelerators.</p>
+    <p>Specialized hardware is designed, not compiled from a general-purpose program. The people who understand the workload best, the software engineers, usually can't build it. Closing that gap is the theme of the DAC 62 keynote <i>Democratize Chip Design</i>, and the reason this course exists.</p>
+  </div>
+  <figure>
+    <div class="plate">
+      <svg viewBox="0 0 760 210" role="img" aria-label="Spectrum from CPU to GPU to FPGA to ASIC: flexibility decreases while efficiency increases">
+        <defs>
+          <linearGradient id="gflex" x1="0" x2="1"><stop offset="0" stop-color="var(--l-metal)" stop-opacity=".55"/><stop offset="1" stop-color="var(--l-metal)" stop-opacity=".05"/></linearGradient>
+          <linearGradient id="geff" x1="0" x2="1"><stop offset="0" stop-color="var(--copper)" stop-opacity=".05"/><stop offset="1" stop-color="var(--copper)" stop-opacity=".6"/></linearGradient>
+        </defs>
+        <rect x="70" y="20" width="640" height="26" rx="13" fill="url(#gflex)"/>
+        <text x="84" y="38" class="t">more flexible · reprogram in seconds</text>
+        <rect x="70" y="164" width="640" height="26" rx="13" fill="url(#geff)"/>
+        <text x="696" y="182" class="t" text-anchor="end">more performance per watt · fixed function</text>
+        <g>
+          <rect x="70" y="70" width="130" height="70" rx="8" class="f-surf"/><text x="135" y="100" class="t-b t-mid">CPU</text><text x="135" y="120" class="t-s t-mid">few big cores</text>
+          <rect x="240" y="70" width="130" height="70" rx="8" class="f-surf"/><text x="305" y="100" class="t-b t-mid">GPU</text><text x="305" y="120" class="t-s t-mid">thousands of lanes</text>
+          <rect x="410" y="70" width="130" height="70" rx="8" class="f-soft"/><text x="475" y="100" class="t-b t-mid">FPGA</text><text x="475" y="120" class="t-s t-mid">reconfigurable logic</text>
+          <rect x="580" y="70" width="130" height="70" rx="8" class="f-soft"/><text x="645" y="100" class="t-b t-mid">ASIC</text><text x="645" y="120" class="t-s t-mid">custom silicon</text>
+          <path d="M202 105 H236 M372 105 H406 M542 105 H576" class="w" marker-end="url(#arr)"/>
+        </g>
+      </svg>
+    </div>
+    <figcaption><span class="figno">FIG 2</span><b>The specialization spectrum.</b> Moving right trades flexibility for efficiency. This course targets the two shaded boxes, which you design rather than program.</figcaption>
+  </figure>
+
+  <div class="col stack">
+    <h3>What a chip actually is</h3>
+    <p>A chip is a slab of silicon a few millimetres to a few centimetres across, covered in transistors: tiny switches that turn on or off depending on a voltage. Wires stacked in a dozen or more metal layers above the transistors connect them into gates, gates into adders and memories, and those into processors. Everything a computer does, including running your Python, comes down to these switches changing state in step with a clock.</p>
+    <p>Software never "runs" in any physical sense. A compiler turns it into bit patterns, and those patterns steer which switches open and close on each clock tick. The examples below follow that path for four kinds of hardware.</p>
+  </div>
+  <div class="facts">
+    <div class="fact"><b>208 billion</b><span>transistors in NVIDIA's B200 GPU, split across two dies. A small microcontroller has thousands of times fewer.</span></div>
+    <div class="fact"><b>1 ns</b><span>per clock cycle at 1 GHz. A 4 GHz CPU core starts a new cycle every 0.25 ns.</span></div>
+    <div class="fact"><b>~30 cm</b><span>is how far light travels in 1 ns. Signals on a chip are slower, so wire length is a real design limit.</span></div>
+    <div class="fact"><b>"3 nm"</b><span>is a marketing name for a process generation. No feature on a modern chip is literally 3 nm wide.</span></div>
+  </div>
+</section>
+
+<!-- ============================== WORKED EXAMPLES -->
+<section id="examples">
+  <header>
+    <span class="eyebrow">01 · Worked examples</span>
+    <h2>How software ends up running on silicon</h2>
+    <p class="col">Four examples, each one level closer to the hardware. Together they show the two ways software meets silicon: a <b>processor</b> interprets your program one instruction at a time, while <b>custom hardware</b> turns your program into the circuit itself.</p>
+  </header>
+
+  <!-- Example 1 -->
+  <div class="example">
+    <span class="eyebrow">Example 1 · processor</span>
+    <h3>One line of C on a RISC-V CPU</h3>
+    <div class="split">
+      <div class="stack">
+        <p>Start with the smallest possible program. Suppose <code>a</code>, <code>b</code> and <code>c</code> are integers the compiler has placed in registers <code>x1</code>, <code>x2</code> and <code>x3</code>.</p>
+<pre class="code"><span class="c">// C source</span>
+c = a + b;
+
+<span class="c"># RISC-V assembly from the compiler</span>
+<span class="k">add</span>  x3, x1, x2
+
+<span class="c"># 32-bit machine code in memory</span>
+0x002081B3</pre>
+        <p>The CPU never sees the letters <code>add</code>. It sees the 32 bits in Fig 1.1. Each group of bits is wired directly to part of the hardware: the opcode bits drive the decoder, the register numbers select register file entries, and the function bits tell the ALU to add rather than subtract.</p>
+      </div>
+      <figure>
+        <div class="plate">
+          <svg viewBox="0 0 420 200" role="img" aria-label="Bit fields of the RISC-V instruction add x3, x1, x2">
+            <g id="encFields"></g>
+          </svg>
+        </div>
+        <figcaption><span class="figno">FIG 1.1</span><b>Instruction encoding.</b> The R-type format of <code>add x3, x1, x2</code>. Reading it is a table lookup in hardware: these bits steer multiplexers and enable signals directly.</figcaption>
+      </figure>
+    </div>
+
+    <p class="col">Now follow that instruction through a classic 5-stage pipeline. Step through it to see what each stage does, down to the transistors inside the adder.</p>
+    <div class="btnrow" style="align-items:center"><button class="btn" id="cpuPrev">← Previous</button><button class="btn" id="cpuNext">Next stage →</button><span class="mono" id="cpuPos" style="font-size:.8rem;color:var(--muted)"></span></div>
+    <div class="split">
+      <figure>
+        <div class="plate"><svg id="cpuFig" viewBox="0 0 420 220" role="img" aria-label="Five-stage RISC-V pipeline with the current stage highlighted"></svg></div>
+        <figcaption><span class="figno">FIG 1.2</span><b>A 5-stage pipeline.</b> Each instruction takes 5 cycles to pass through, but a new one enters every cycle. At 1 GHz that is 5 ns from fetch to result, and one finished instruction per nanosecond in steady state.</figcaption>
+      </figure>
+      <div class="stack" id="cpuText"></div>
+    </div>
+  </div>
+
+  <!-- Example 2 -->
+  <div class="example">
+    <span class="eyebrow">Example 2 · same code, four machines</span>
+    <h3>A vector add on a CPU, a GPU, an FPGA and an ASIC</h3>
+    <div class="split">
+<pre class="code"><span class="c">// add two arrays of 1,024 floats</span>
+<span class="k">for</span> (int i = 0; i &lt; 1024; i++)
+    c[i] = a[i] + b[i];</pre>
+      <p>The program is identical in every case. What changes is how much of the work is spent <b>deciding what to do</b> (fetching and decoding instructions, scheduling) versus <b>doing it</b> (the add itself). Pick a machine. The timelines are schematic, to show the shape of the work rather than real cycle counts.</p>
+    </div>
+    <div class="tabs" role="tablist" aria-label="Target machine" id="m4Tabs"></div>
+    <div class="split">
+      <figure><div class="plate"><svg id="m4Fig" viewBox="0 0 420 230" role="img" aria-label="Execution timeline for the selected machine"></svg></div><figcaption id="m4Cap"></figcaption></figure>
+      <div class="stack" id="m4Text"></div>
+    </div>
+  </div>
+
+  <!-- Example 3 -->
+  <div class="example">
+    <span class="eyebrow">Example 3 · custom hardware</span>
+    <h3>Blinking an LED on an FPGA board</h3>
+    <div class="split">
+      <div class="stack">
+        <p>This is the "hello world" of hardware, and it shows the big difference from software. Nothing executes here. The code describes a 27-bit counter wired to an LED, and synthesis builds exactly that circuit from the FPGA's flip-flops and lookup tables.</p>
+<pre class="code"><span class="k">module</span> blinky (
+  <span class="k">input</span>  wire clk,      <span class="c">// 100 MHz board oscillator</span>
+  <span class="k">output</span> wire led
+);
+  <span class="k">reg</span> [26:0] count = 0;
+  <span class="k">always</span> @(<span class="k">posedge</span> clk)
+    count &lt;= count + 1;    <span class="c">// adds 1 every 10 ns</span>
+  <span class="k">assign</span> led = count[26]; <span class="c">// top bit drives the LED pin</span>
+<span class="k">endmodule</span></pre>
+        <p>Bit 26 of a counter flips every 2<sup>26</sup> clock cycles. At 100 MHz that is 2<sup>26</sup> × 10 ns ≈ <b>0.67 s</b>, so the LED blinks with a period of about 1.34 s. A constraints file maps <code>clk</code> and <code>led</code> to physical pins on the board, which is how the design reaches the outside world.</p>
+      </div>
+      <figure>
+        <div class="plate">
+          <svg viewBox="0 0 420 300" role="img" aria-label="FPGA board with oscillator, FPGA chip and LED, and waveforms of the clock and counter bit 26">
+            <rect x="10" y="10" width="400" height="150" rx="10" style="fill:var(--l-diff);opacity:.18;stroke:var(--l-diff);stroke-width:1.5"/>
+            <text x="22" y="30" class="t-s">FPGA development board</text>
+            <rect x="30" y="66" width="62" height="40" rx="4" class="f-surf"/><text x="61" y="84" class="t-s t-mid">OSC</text><text x="61" y="98" class="t-s t-mid">100 MHz</text>
+            <rect x="150" y="44" width="110" height="96" rx="4" style="fill:var(--ink)"/>
+            <text x="205" y="86" class="t t-mid" style="fill:var(--bg)">FPGA</text><text x="205" y="102" class="t-s t-mid" style="fill:var(--bg)">counter</text><text x="205" y="116" class="t-s t-mid" style="fill:var(--bg)">in LUTs + FFs</text>
+            <g class="w-thin"><path d="M150 54 h-6 M150 66 h-6 M150 78 h-6 M150 90 h-6 M150 102 h-6 M150 114 h-6 M150 126 h-6 M260 54 h6 M260 66 h6 M260 78 h6 M260 90 h6 M260 102 h6 M260 114 h6 M260 126 h6"/></g>
+            <path d="M92 86 H144" class="w" marker-end="url(#arr)"/><text x="100" y="80" class="t-s">clk</text>
+            <path d="M266 90 H330" class="w-acc" marker-end="url(#arr-acc)"/><text x="272" y="84" class="t-acc">led</text>
+            <circle cx="348" cy="90" r="12" style="fill:var(--copper);opacity:.9"/><circle cx="348" cy="90" r="20" style="fill:var(--copper);opacity:.18"/>
+            <rect x="320" y="124" width="70" height="22" rx="3" class="f-sunk"/><text x="355" y="139" class="t-s t-mid">USB-JTAG</text>
+            <!-- waves -->
+            <text x="12" y="196" class="t-s">clk</text>
+            <g id="blinkClk"></g>
+            <text x="12" y="250" class="t-s">count[26]</text>
+            <polyline points="80,262 80,262 200,262 200,236 320,236 320,262 410,262" class="w-acc"/>
+            <path d="M80 280 H200" class="w-thin" marker-start="url(#arr)" marker-end="url(#arr)"/><text x="140" y="294" class="t-s t-mid">2²⁶ cycles ≈ 0.67 s</text>
+            <text x="300" y="214" class="t-s">(clock not to scale:</text><text x="300" y="226" class="t-s">67 million edges per half)</text>
+          </svg>
+        </div>
+        <figcaption><span class="figno">FIG 1.3</span><b>From code to a blinking light.</b> The 100 MHz oscillator drives the counter built in the FPGA fabric, and the counter's top bit drives an LED pin. Once programmed through USB-JTAG, the circuit runs on its own with no processor and no instructions.</figcaption>
+      </figure>
+    </div>
+  </div>
+
+  <!-- Example 4 -->
+  <div class="example">
+    <span class="eyebrow">Example 4 · accelerator</span>
+    <h3>A neural-network layer on a matrix engine</h3>
+    <div class="split">
+      <div class="stack">
+<pre class="code"><span class="c"># PyTorch</span>
+y = torch.relu(x @ W + b)   <span class="c"># x: 1×256, W: 256×256</span></pre>
+        <p>This line is 65,536 multiply-adds. On a CPU each one goes through fetch, decode and the register file. A matrix accelerator such as a TPU-style systolic array (Fig 13 in Section 05) loads <code>W</code> into a grid of multiply-add cells once. It then streams <code>x</code> through so that every cell does useful arithmetic on every cycle.</p>
+        <p>A framework compiler (for example XLA, or PyTorch's export path into MLIR) breaks the model into these matrix operations and maps them onto the engine. That is the same path ChipDesignAgent aims to automate for new kinds of kernels (Section 07).</p>
+      </div>
+      <figure>
+        <div class="plate">
+          <svg viewBox="0 0 420 230" role="img" aria-label="Weights loaded into a grid of multiply-add cells while activations stream through and results flow out">
+            <g id="mmFig"></g>
+          </svg>
+        </div>
+        <figcaption><span class="figno">FIG 1.4</span><b>Weight-stationary matrix engine.</b> Weights (copper) stay in place while inputs flow right and partial sums flow down. A 256×256 array finishes this layer's multiply-adds in a few hundred cycles, against hundreds of thousands of instructions on a simple CPU core.</figcaption>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<!-- ============================== STACK -->
+<section id="stack">
+  <header>
+    <span class="eyebrow">02 · Interactive</span>
+    <h2>The abstraction stack, layer by layer</h2>
+    <p class="col">You already work with abstraction layers: Python sits on bytecode, which sits on machine code. Hardware has the same kind of stack below the instruction set. Pick a layer to see what it looks like and what the closest software idea is.</p>
+  </header>
+  <div class="explorer">
+    <div class="layers" id="layers" role="group" aria-label="Abstraction layers"></div>
+    <div class="detail" id="layerDetail"></div>
+  </div>
+</section>
+
+<!-- ============================== BUILDING BLOCKS -->
+<section id="blocks">
+  <header>
+    <span class="eyebrow">03 · Concepts</span>
+    <h2>Building blocks you will meet in week one</h2>
+    <p class="col">Every digital chip, from a microcontroller to a datacenter accelerator, is built from the same few ideas. Each figure below is one lecture's core picture.</p>
+  </header>
+
+  <div class="grid2">
+    <figure>
+      <div class="plate">
+        <svg viewBox="0 0 360 220" role="img" aria-label="CMOS inverter schematic with PMOS on top and NMOS below, and its truth table">
+          <path d="M175 20 H235" class="w"/><text x="240" y="24" class="t-s">VDD</text>
+          <path d="M205 20 V55 H185" class="w"/>
+          <path d="M185 50 V90" class="w" style="stroke-width:2.4"/>
+          <path d="M175 52 V88" class="w"/>
+          <circle cx="170" cy="70" r="4" class="f-surf"/>
+          <path d="M185 85 H205 V155 H185" class="w"/>
+          <path d="M185 120 V160" class="w" style="stroke-width:2.4"/>
+          <path d="M175 122 V158" class="w"/>
+          <path d="M185 155 H205" class="w"/>
+          <path d="M205 155 V190 M193 190 H217 M197 196 H213 M201 202 H209" class="w"/>
+          <text x="221" y="196" class="t-s">GND</text>
+          <path d="M110 70 H166 M110 140 H175 M110 70 V140 M50 105 H110" class="w"/>
+          <circle cx="110" cy="105" r="3" class="f-ink"/>
+          <path d="M205 105 H275" class="w-acc"/><circle cx="205" cy="105" r="3" class="f-acc"/>
+          <text x="40" y="100" class="t-b">IN</text><text x="248" y="98" class="t-acc">OUT</text>
+          <text x="128" y="64" class="t-s">PMOS</text><text x="128" y="134" class="t-s">NMOS</text>
+          <rect x="286" y="60" width="64" height="74" rx="6" class="f-sunk"/>
+          <text x="298" y="80" class="t-s">IN OUT</text>
+          <text x="302" y="102" class="t">0  1</text><text x="302" y="122" class="t">1  0</text>
+        </svg>
+      </div>
+      <figcaption><span class="figno">FIG 3</span><b>CMOS inverter.</b> Two transistors act as switches. When the input is 0 the PMOS conducts and the output is pulled up to 1; when the input is 1 the NMOS pulls it down to 0. Every gate is a variation of this pull-up and pull-down network.</figcaption>
+    </figure>
+
+    <figure>
+      <div class="plate">
+        <svg viewBox="0 0 360 220" role="img" aria-label="Logic gate symbols AND, OR, XOR, NOT with truth tables">
+          <g transform="translate(20,20)">
+            <path d="M10 0 h22 a16 16 0 0 1 0 32 h-22 z" class="f-surf"/><path d="M0 8 H10 M0 24 H10 M48 16 H60" class="w"/>
+            <text x="74" y="12" class="t-b">AND</text><text x="74" y="28" class="t-s">1 only if both are 1</text>
+          </g>
+          <g transform="translate(20,72)">
+            <path d="M8 0 q16 16 0 32 q28 0 42 -16 q-14 -16 -42 -16 z" class="f-surf"/><path d="M0 8 H13 M0 24 H13 M50 16 H60" class="w"/>
+            <text x="74" y="12" class="t-b">OR</text><text x="74" y="28" class="t-s">1 if either is 1</text>
+          </g>
+          <g transform="translate(20,124)">
+            <path d="M12 0 q16 16 0 32 q28 0 42 -16 q-14 -16 -42 -16 z" class="f-surf"/><path d="M4 0 q16 16 0 32" class="w"/><path d="M0 8 H11 M0 24 H11 M54 16 H62" class="w"/>
+            <text x="74" y="12" class="t-b">XOR</text><text x="74" y="28" class="t-s">1 if inputs differ (a sum bit)</text>
+          </g>
+          <g transform="translate(20,176)">
+            <path d="M10 0 l30 16 l-30 16 z" class="f-surf"/><circle cx="44" cy="16" r="4" class="f-surf"/><path d="M0 16 H10 M48 16 H60" class="w"/>
+            <text x="74" y="12" class="t-b">NOT</text><text x="74" y="28" class="t-s">the inverter from Fig 3</text>
+          </g>
+          <rect x="262" y="22" width="86" height="96" rx="6" class="f-sunk"/>
+          <text x="272" y="40" class="t-s">a b &amp; | ^</text>
+          <text x="272" y="60" class="t">0 0 0 0 0</text><text x="272" y="78" class="t">0 1 0 1 1</text>
+          <text x="272" y="96" class="t">1 0 0 1 1</text><text x="272" y="114" class="t">1 1 1 1 0</text>
+        </svg>
+      </div>
+      <figcaption><span class="figno">FIG 4</span><b>Logic gates</b> are the bitwise operators <code>&amp; | ^ ~</code> you already use, built in hardware. Gates have no clock and no memory, so their output changes whenever an input changes.</figcaption>
+    </figure>
+
+    <figure>
+      <div class="plate">
+        <svg viewBox="0 0 560 210" role="img" aria-label="D flip-flop and timing waveform: Q copies D at each rising clock edge">
+          <rect x="20" y="50" width="90" height="100" rx="4" class="f-surf"/>
+          <text x="30" y="78" class="t-b">D</text><text x="88" y="78" class="t-b">Q</text>
+          <path d="M20 122 l12 8 l-12 8" class="w"/><text x="38" y="135" class="t-s">clk</text>
+          <path d="M0 74 H20 M110 74 H130 M0 130 H20" class="w"/>
+          <text x="20" y="40" class="t-s">D flip-flop</text>
+          <!-- waves -->
+          <text x="150" y="48" class="t-s">clk</text>
+          <polyline points="180,55 200,55 200,30 230,30 230,55 260,55 260,30 290,30 290,55 320,55 320,30 350,30 350,55 380,55 380,30 410,30 410,55 440,55 440,30 470,30 470,55 500,55 500,30 530,30 530,55 545,55" class="w"/>
+          <text x="150" y="108" class="t-s">D</text>
+          <polyline points="180,115 215,115 215,90 335,90 335,115 405,115 405,90 545,90" class="w"/>
+          <text x="150" y="168" class="t-s">Q</text>
+          <polyline points="180,175 260,175 260,150 380,150 380,175 440,175 440,150 545,150" class="w-acc"/>
+          <g class="w-dash"><path d="M200 22 V185 M260 22 V185 M320 22 V185 M380 22 V185 M440 22 V185 M500 22 V185"/></g>
+          <text x="200" y="202" class="t-s t-mid">edge 1</text><text x="260" y="202" class="t-s t-mid">2</text><text x="320" y="202" class="t-s t-mid">3</text><text x="380" y="202" class="t-s t-mid">4</text><text x="440" y="202" class="t-s t-mid">5</text><text x="500" y="202" class="t-s t-mid">6</text>
+        </svg>
+      </div>
+      <figcaption><span class="figno">FIG 5</span><b>Flip-flops add memory and time.</b> Q copies D only at a rising clock edge and ignores D between edges. A register is a row of flip-flops, and the clock is the "step" of the whole machine, like one iteration of an event loop.</figcaption>
+    </figure>
+
+    <figure>
+      <div class="plate">
+        <svg viewBox="0 0 360 210" role="img" aria-label="Finite state machine for a traffic light with Red, Green, Yellow states">
+          <circle cx="180" cy="48" r="32" class="f-soft"/><text x="180" y="52" class="t-b t-mid">RED</text>
+          <circle cx="290" cy="160" r="32" class="f-surf"/><text x="290" y="164" class="t-b t-mid">GREEN</text>
+          <circle cx="70" cy="160" r="32" class="f-surf"/><text x="70" y="164" class="t-b t-mid">YELLOW</text>
+          <path d="M210 62 Q270 80 284 126" class="w" marker-end="url(#arr)"/>
+          <path d="M256 166 Q180 190 104 166" class="w" marker-end="url(#arr)"/>
+          <path d="M78 127 Q96 76 148 54" class="w" marker-end="url(#arr)"/>
+          <text x="262" y="88" class="t-s">t ≥ 30 s</text>
+          <text x="180" y="200" class="t-s t-mid">t ≥ 25 s or ped. button</text>
+          <text x="40" y="92" class="t-s">t ≥ 4 s</text>
+          <path d="M180 0 V14" class="w" marker-end="url(#arr)"/><text x="186" y="10" class="t-s">reset</text>
+        </svg>
+      </div>
+      <figcaption><span class="figno">FIG 6</span><b>Finite state machines</b> are the control logic of hardware: a <code>switch(state)</code> inside a loop that runs once per clock cycle. A state register holds the current state, and gates compute the next one.</figcaption>
+    </figure>
+
+    <figure>
+      <div class="plate">
+        <svg viewBox="0 0 360 220" role="img" aria-label="Datapath with register file, multiplexer, ALU and a control unit">
+          <rect x="18" y="60" width="74" height="100" rx="4" class="f-surf"/>
+          <g class="w-thin"><path d="M18 80 H92 M18 100 H92 M18 120 H92 M18 140 H92"/></g>
+          <text x="55" y="52" class="t-s t-mid">register file</text>
+          <path d="M150 70 L176 82 V138 L150 150 Z" class="f-surf"/><text x="161" y="114" class="t-s t-mid">MUX</text>
+          <path d="M214 64 L270 92 V128 L214 156 V122 L228 110 L214 98 Z" class="f-soft"/><text x="246" y="114" class="t-b t-mid">ALU</text>
+          <path d="M92 76 H200 V84 H214" class="w" marker-end="url(#arr)"/>
+          <path d="M92 132 H150" class="w" marker-end="url(#arr)"/>
+          <path d="M120 96 H150" class="w" marker-end="url(#arr)"/><text x="98" y="92" class="t-s">imm</text>
+          <path d="M176 110 H200 V136 H214" class="w" marker-end="url(#arr)"/>
+          <path d="M270 110 H300 V196 H10 V110 H18" class="w-acc" marker-end="url(#arr-acc)"/>
+          <text x="306" y="150" class="t-acc">result</text>
+          <rect x="196" y="6" width="120" height="30" rx="4" class="f-sunk"/><text x="256" y="25" class="t t-mid">control (FSM)</text>
+          <path d="M226 36 V58 M163 36 V64 M60 36 V56" class="w-dash"/>
+          <path d="M60 36 H226" class="w-dash"/>
+        </svg>
+      </div>
+      <figcaption><span class="figno">FIG 7</span><b>Datapath plus control.</b> The datapath moves and transforms data: registers, multiplexers (hardware <code>if</code>) and an ALU. The control FSM (dashed lines) chooses what happens each cycle. A CPU is this picture with an instruction decoder as the control.</figcaption>
+    </figure>
+
+    <figure>
+      <div class="plate">
+        <svg viewBox="0 0 360 220" role="img" aria-label="Critical path between two registers and the clock period budget">
+          <rect x="14" y="40" width="40" height="56" rx="3" class="f-surf"/><text x="34" y="72" class="t-s t-mid">REG</text>
+          <rect x="306" y="40" width="40" height="56" rx="3" class="f-surf"/><text x="326" y="72" class="t-s t-mid">REG</text>
+          <path d="M84 52 h14 a12 12 0 0 1 0 24 h-14 z" class="f-surf" style="stroke-width:1.3"/>
+          <path d="M146 60 q12 12 0 24 q20 0 32 -12 q-12 -12 -32 -12 z" class="f-surf" style="stroke-width:1.3"/>
+          <path d="M214 62 h14 a12 12 0 0 1 0 24 h-14 z" class="f-surf" style="stroke-width:1.3"/>
+          <path d="M254 66 l20 10 l-20 10 z" class="f-surf" style="stroke-width:1.3"/>
+          <path d="M54 64 H84 M110 64 H128 V72 H148 M178 72 H196 V74 H214 M240 74 H254 M278 76 H306" class="w-acc"/>
+          <path d="M54 84 H70 V70 H84 M54 90 H136 V80 H148" class="w-thin"/>
+          <text x="180" y="30" class="t-acc t-mid">critical path: longest gate chain</text>
+          <!-- budget bar -->
+          <rect x="14" y="140" width="56" height="26" class="l-metal"/><rect x="70" y="140" width="210" height="26" class="f-soft"/><rect x="280" y="140" width="40" height="26" class="l-poly"/>
+          <rect x="320" y="140" width="26" height="26" class="f-sunk"/>
+          <text x="42" y="182" class="t-s t-mid">clk→Q</text><text x="175" y="182" class="t-s t-mid">logic delay</text><text x="300" y="182" class="t-s t-mid">setup</text><text x="333" y="182" class="t-s t-mid">slack</text>
+          <path d="M14 200 H346" class="w" marker-start="url(#arr)" marker-end="url(#arr)"/><text x="180" y="214" class="t t-mid">clock period T</text>
+        </svg>
+      </div>
+      <figcaption><span class="figno">FIG 8</span><b>Timing sets the clock speed.</b> A signal must get from one register through the slowest chain of gates and reach the next register before the clock edge. That longest path fixes the maximum frequency. Pipelining (Section 05) splits it with extra registers.</figcaption>
+    </figure>
+  </div>
+
+  <figure>
+    <div class="plate">
+      <svg viewBox="0 0 760 230" role="img" aria-label="Memory hierarchy from registers to on-chip SRAM to off-chip DRAM, with relative size and latency">
+        <path d="M380 14 L440 64 H320 Z" class="f-soft"/>
+        <path d="M320 70 H440 L500 120 H260 Z" class="f-surf"/>
+        <path d="M260 126 H500 L560 176 H200 Z" class="f-surf"/>
+        <path d="M200 182 H560 L610 222 H150 Z" class="f-sunk" style="stroke:var(--ink);stroke-width:1.2"/>
+        <text x="380" y="54" class="t-b t-mid">Registers</text>
+        <text x="380" y="102" class="t-b t-mid">On-chip SRAM / BRAM</text>
+        <text x="380" y="158" class="t-b t-mid">Caches / scratchpads</text>
+        <text x="380" y="208" class="t-b t-mid">Off-chip DRAM / HBM</text>
+        <g>
+          <text x="470" y="44" class="t-s">bits–KB · same cycle</text>
+          <text x="520" y="100" class="t-s">KB–MB · 1–2 cycles</text>
+          <text x="576" y="156" class="t-s">MB · a few cycles</text>
+          <text x="624" y="208" class="t-s">GB · ~100+ cycles</text>
+        </g>
+        <path d="M110 30 V210" class="w" marker-end="url(#arr)"/><text x="98" y="122" class="t-s" text-anchor="end">bigger,</text><text x="98" y="136" class="t-s" text-anchor="end">slower,</text><text x="98" y="150" class="t-s" text-anchor="end">cheaper/bit</text>
+      </svg>
+    </div>
+    <figcaption><span class="figno">FIG 9</span><b>Memory dominates accelerator design.</b> Arithmetic is cheap and moving data is expensive. Most HLS optimizations (tiling, line buffers, array partitioning) keep data in the top two layers. Latencies are typical orders of magnitude, not exact figures.</figcaption>
+  </figure>
+</section>
+
+<!-- ============================== FLOW -->
+<section id="flow">
+  <header>
+    <span class="eyebrow">04 · Interactive</span>
+    <h2>The design flow, from spec to silicon</h2>
+    <p class="col">The two targets share the front of the flow and split at implementation. Step through it, and switch between FPGA and ASIC to see what changes.</p>
+  </header>
+  <div class="btnrow" style="align-items:center;justify-content:space-between">
+    <div class="seg" role="group" aria-label="Target">
+      <button id="tFPGA" aria-pressed="true">FPGA</button><button id="tASIC" aria-pressed="false">ASIC</button>
+    </div>
+    <div class="btnrow"><button class="btn" id="fPrev">← Previous</button><button class="btn" id="fNext">Next →</button></div>
+  </div>
+  <div class="flow-strip" id="flowStrip" role="list"></div>
+  <div class="flow-card">
+    <div class="stack" id="flowText"></div>
+    <figure><div class="plate" id="flowFig"></div><figcaption id="flowCap"></figcaption></figure>
+  </div>
+
+  <div class="grid2">
+    <figure>
+      <div class="plate">
+        <svg viewBox="0 0 360 240" role="img" aria-label="FPGA fabric: grid of logic blocks with BRAM and DSP columns, and a lookup table detail">
+          <rect x="8" y="8" width="224" height="224" rx="6" class="f-sunk"/>
+          <g id="fabric"></g>
+          <text x="120" y="226" class="t-s t-mid">I/O ring around the edge</text>
+          <rect x="250" y="40" width="100" height="150" rx="6" class="f-surf"/>
+          <text x="300" y="58" class="t-s t-mid">4-input LUT</text>
+          <g id="lut"></g>
+          <path d="M232 100 H250" class="w-dash"/>
+        </svg>
+      </div>
+      <figcaption><span class="figno">FIG 10</span><b>FPGA fabric.</b> A grid of logic blocks (grey), block RAM columns (copper) and DSP multiplier columns (blue), linked by programmable routing. Each logic block holds lookup tables: a 4-input LUT is a 16-entry truth table, so it can compute <i>any</i> 4-input function. "Programming" an FPGA means filling in these tables and switching the routing.</figcaption>
+    </figure>
+    <figure>
+      <div class="plate">
+        <svg viewBox="0 0 360 240" role="img" aria-label="ASIC standard cell rows between power rails with routed metal wires">
+          <g id="cells"></g>
+        </svg>
+      </div>
+      <figcaption><span class="figno">FIG 11</span><b>ASIC standard cells.</b> Synthesis maps your design to a library of pre-drawn gates (cells) of the same height. Placement lines them up in rows between VDD and GND rails, then routing connects them on metal layers above (blue). Nothing can be changed after fabrication.</figcaption>
+    </figure>
+  </div>
+</section>
+
+<!-- ============================== THINK IN HARDWARE -->
+<section id="think">
+  <header>
+    <span class="eyebrow">05 · Interactive</span>
+    <h2>Thinking in hardware: pipelining, unrolling, and patterns</h2>
+    <p class="col">In software a loop runs one iteration after another. In hardware you choose how many iterations overlap (<b>pipelining</b>) and how many copies of the body exist (<b>unrolling</b>). The <b>initiation interval (II)</b> is how many cycles pass before the next iteration can start. Move the sliders.</p>
+  </header>
+  <div class="calc">
+    <div class="stack">
+      <div class="ctl"><label for="pN">Loop iterations N <output id="oN"></output></label><input type="range" id="pN" min="4" max="64" value="16"></div>
+      <div class="ctl"><label for="pD">Pipeline depth (stages) <output id="oD"></output></label><input type="range" id="pD" min="1" max="8" value="4"></div>
+      <div class="ctl"><label for="pII">Initiation interval II <output id="oII"></output></label><input type="range" id="pII" min="1" max="4" value="1"></div>
+      <div class="ctl"><label for="pU">Unroll factor <output id="oU"></output></label><input type="range" id="pU" min="0" max="3" value="0"></div>
+      <div class="stats">
+        <div class="stat"><b id="sSeq"></b><span>cycles, no pipeline</span></div>
+        <div class="stat"><b id="sPipe"></b><span>cycles, pipelined</span></div>
+        <div class="stat"><b id="sSpd"></b><span>speed-up</span></div>
+      </div>
+      <p class="mono" style="font-size:.8rem;color:var(--muted)">pipelined ≈ depth + (⌈N/unroll⌉ − 1) × II</p>
+    </div>
+    <figure>
+      <div class="plate"><svg id="gantt" role="img" aria-label="Pipeline schedule chart"></svg></div>
+      <figcaption id="ganttCap"></figcaption>
+    </figure>
+  </div>
+
+  <div class="grid2">
+    <figure>
+      <div class="plate">
+        <svg viewBox="0 0 360 250" role="img" aria-label="4 by 4 systolic array of processing elements with matrix A flowing right and B flowing down">
+          <g id="systolic"></g>
+        </svg>
+      </div>
+      <figcaption><span class="figno">FIG 13</span><b>Systolic array for matrix multiply.</b> A grid of processing elements (PEs), each doing one multiply-add per cycle. Rows of A flow right and columns of B flow down, so each value is fetched once and reused by a whole row or column. This is the structure AutoSA generates and the core of Google's TPU.</figcaption>
+    </figure>
+    <figure>
+      <div class="plate">
+        <svg viewBox="0 0 360 250" role="img" aria-label="Stencil computation with 5-point window and two line buffers">
+          <g id="stencil"></g>
+        </svg>
+      </div>
+      <figcaption><span class="figno">FIG 14</span><b>Stencil with line buffers.</b> A 5-point Jacobi stencil reads each pixel's neighbours. Streaming the image row by row and keeping the last two rows on chip (copper line buffers) means each input comes from DRAM only once, and the pipeline produces one output per cycle.</figcaption>
+    </figure>
+  </div>
+
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Software habit</th><th>Hardware reality</th><th>What you do instead</th></tr></thead>
+      <tbody>
+        <tr><td>Statements run in order</td><td>Everything in a clock cycle happens at once</td><td>Think in data flow and cycles, not in program order</td></tr>
+        <tr><td><code>malloc</code>, recursion, <code>std::vector</code></td><td>Hardware size is fixed when the chip is built</td><td>Fixed-size arrays, bounded loops, explicit stacks</td></tr>
+        <tr><td>Memory is one flat array</td><td>Each on-chip RAM has 1–2 ports</td><td>Partition arrays so parallel reads hit different banks</td></tr>
+        <tr><td>Floating point is free</td><td>A float multiplier costs DSP blocks and area</td><td>Fixed-point types (<code>ap_fixed</code>), narrower bit widths</td></tr>
+        <tr><td><code>printf</code> debugging</td><td>Logic signals are only visible in simulation</td><td>Testbenches, waveforms, assertions</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ============================== COURSE -->
+<section id="course">
+  <header>
+    <span class="eyebrow">06 · Course elements</span>
+    <h2>A 14-week course plan</h2>
+    <p class="col">The plan assumes a CS student who knows C and data structures, plus some computer organization. It moves from gates to accelerators, then to the AI-assisted flow covered in Section 07. Filter by track, and tick off modules as you finish them (saved in this browser only).</p>
+  </header>
+  <div class="chips" id="trackChips" role="group" aria-label="Filter by track"></div>
+  <div class="progress"><span id="progText"></span><div class="bar"><i id="progBar"></i></div></div>
+  <div class="modules" id="modules"></div>
+
+  <div class="grid2">
+    <div class="stack">
+      <h3>Assessment (suggested weights)</h3>
+      <div class="weights" role="img" aria-label="Labs 40 percent, final project 35 percent, midterm 15 percent, quizzes 10 percent">
+        <div style="flex:40;background:var(--copper)">Labs 40%</div>
+        <div style="flex:35;background:var(--c-prof)">Project 35%</div>
+        <div style="flex:15;background:var(--c-xf)">Midterm 15%</div>
+        <div style="flex:10;background:var(--muted)">Quiz 10%</div>
+      </div>
+      <p style="font-size:.92rem;color:var(--muted)">Labs are weekly and graded by passing testbenches. The final project is team-based: an accelerator taken through verification and either FPGA deployment or an open-source ASIC flow, with a short report comparing speed and resources to a CPU baseline.</p>
+    </div>
+    <div class="stack">
+      <h3>Capstone project ideas</h3>
+      <ul style="margin:0;padding-left:18px;display:grid;gap:6px;font-size:.93rem">
+        <li>GEMM accelerator in HLS, with a measured speed-up against the CPU</li>
+        <li>Image-filter pipeline (blur → Sobel) using line buffers and dataflow</li>
+        <li>Small RV32I core that runs a C program on an FPGA board</li>
+        <li>A design small enough for an educational shuttle tapeout (e.g. Tiny Tapeout)</li>
+        <li>Extend ChipDesignAgent with a new pattern or a cost model (Section 07)</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3>Tools you will use</h3>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Task</th><th>Open source (free)</th><th>Industry</th></tr></thead>
+      <tbody>
+        <tr><td>Hardware languages</td><td>Verilog / SystemVerilog, VHDL, Chisel, Amaranth (Python), SpinalHDL</td><td>SystemVerilog</td></tr>
+        <tr><td>Simulation &amp; waveforms</td><td>Icarus Verilog, Verilator, GTKWave, Surfer</td><td>Synopsys VCS, Siemens Questa, Cadence Xcelium</td></tr>
+        <tr><td>Verification</td><td>cocotb (Python testbenches), SymbiYosys (formal)</td><td>UVM, Cadence Jasper</td></tr>
+        <tr><td>High-level synthesis</td><td>Bambu (PandA), Google XLS</td><td>AMD Vitis HLS (no-cost license), Siemens Catapult, Cadence Stratus</td></tr>
+        <tr><td>FPGA implementation</td><td>Yosys + nextpnr (Lattice iCE40 / ECP5)</td><td>AMD Vivado, Intel Quartus</td></tr>
+        <tr><td>ASIC implementation</td><td>OpenROAD / OpenLane, Magic, KLayout, SKY130 &amp; GF180 open PDKs</td><td>Synopsys Fusion Compiler, Cadence Genus / Innovus</td></tr>
+        <tr><td>Cloud (Section 08)</td><td>Any of the above in containers on cloud VMs or CI runners</td><td>AWS F2 FPGAs, Synopsys Cloud, Cadence cloud services, Azure workbench</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Reading list</h3>
+  <ul class="col" style="margin:0;padding-left:18px;display:grid;gap:6px;font-size:.93rem">
+    <li>Harris &amp; Harris, <i>Digital Design and Computer Architecture, RISC-V Edition</i>: the main textbook for weeks 1–7.</li>
+    <li>Patterson &amp; Hennessy, <i>Computer Organization and Design, RISC-V Edition</i>: pipelining and memory.</li>
+    <li>Kastner, Matai &amp; Neuendorffer, <i>Parallel Programming for FPGAs</i>: a free HLS textbook for weeks 10–11.</li>
+    <li>Weste &amp; Harris, <i>CMOS VLSI Design</i>: transistor and physical design background for week 12.</li>
+    <li>Papers: AutoSA (FPGA '21), HARP (ICCAD '23), and recent LLM-for-HLS work for week 14.</li>
+  </ul>
+
+  <div class="stack" id="kit" style="padding-top:40px">
+    <span class="eyebrow">06 · Lab hardware</span>
+    <h2>Devices, boards and equipment: from breadboard to silicon</h2>
+    <p class="col">Students should hold the hardware in their hands at every stage. They wire real logic chips before writing Verilog, program a board before using the cloud, and finish by sending a design to a chip shuttle. The plan below lists what a lab needs at each stage, with an open-source option and a vendor-tool option where both exist.</p>
+  </div>
+
+  <figure>
+    <div class="plate">
+      <svg viewBox="0 0 900 230" role="img" aria-label="Hardware progression over the course: breadboard logic, entry FPGA board, soft-core SoC board, FPGA SoC accelerator board, cloud FPGA, and a taped-out chip">
+        <g id="kitTimeline"></g>
+      </svg>
+    </div>
+    <figcaption><span class="figno">FIG 6.1</span><b>The hardware path through the course.</b> Each stage reuses the skills from the one before. Fabrication takes months, so chips from a tapeout in week 12 typically arrive after the course ends, often in time for the next cohort to do bring-up and testing.</figcaption>
+  </figure>
+
+  <div class="split">
+    <figure>
+      <div class="plate">
+        <svg viewBox="0 0 440 280" role="img" aria-label="A lab bench with a PC, FPGA board, breadboard, logic analyzer, oscilloscope, bench power supply and multimeter">
+          <g id="benchFig"></g>
+        </svg>
+      </div>
+      <figcaption><span class="figno">FIG 6.2</span><b>One lab bench, shared by two students.</b> The PC runs the tools and programs the board over USB. The logic analyzer captures digital signals such as a UART line or bus. The oscilloscope shows analog behaviour such as clock edges, ringing and the inverter you built from two MOSFETs.</figcaption>
+    </figure>
+    <div class="stack">
+      <h3>Why each instrument is there</h3>
+      <ul style="margin:0;padding-left:18px;display:grid;gap:6px;font-size:.93rem">
+        <li><b>Multimeter:</b> check supply voltages and continuity before powering a breadboard. It is the first debugging tool.</li>
+        <li><b>Bench power supply</b> with current limiting, so a wiring mistake trips a limit instead of burning a chip.</li>
+        <li><b>USB logic analyzer</b> (8–16 channels): watch counters, state machines and serial protocols on real pins. Open-source PulseView (sigrok) decodes UART, SPI and I²C.</li>
+        <li><b>Oscilloscope</b> (2–4 channels, 100 MHz or more): see that a "digital" signal is really analog, measure rise times, and connect timing analysis (Fig 8) to reality.</li>
+        <li><b>ESD mat and wrist strap:</b> FPGA boards and bare chips are sensitive to static.</li>
+        <li><b>Soldering station</b> shared between benches, for headers, PMOD adapters and the chip-carrier board in the silicon stage.</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3>Kit planner</h3>
+  <p class="col" style="font-size:.93rem;color:var(--muted)">Set the class size and the toolchain to get a parts list with quantities. Per-student items include 10% spares. Benches are shared by two students and project teams have four. Cost tiers are approximate prices per unit in USD: <span class="tier">$</span> under 50, <span class="tier">$$</span> 50–400, <span class="tier">$$$</span> 400–2,000, <span class="tier">$$$$</span> over 2,000. Check current supplier prices and academic discounts before ordering.</p>
+  <div class="kitctl">
+    <div class="ctl"><label for="kitN">Students <output id="kitNo"></output></label><input type="range" id="kitN" min="10" max="120" step="2" value="40"></div>
+    <div class="seg" role="group" aria-label="Toolchain">
+      <button id="kitOpen" aria-pressed="true">Open-source tools</button><button id="kitVendor" aria-pressed="false">Vendor tools</button>
+    </div>
+  </div>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Item</th><th>What it teaches</th><th>Weeks</th><th>Per</th><th style="text-align:right">Qty</th><th>Tier</th></tr></thead>
+      <tbody id="kitBody"></tbody>
+    </table>
+  </div>
+
+  <h3>Board guide</h3>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Board</th><th>Device</th><th>Toolchain</th><th>Use it for</th></tr></thead>
+      <tbody>
+        <tr><td><b>iCEBreaker</b></td><td>Lattice iCE40UP5K, 12 MHz clock, PMOD ports</td><td>Fully open: Yosys, nextpnr, IceStorm</td><td>Weeks 3–9 on an all-open-source track; small enough to understand the whole toolchain</td></tr>
+        <tr><td><b>Sipeed Tang Nano 9K</b></td><td>Gowin GW1NR-9, 27 MHz clock, HDMI</td><td>Gowin EDA, or open (Apicula + nextpnr)</td><td>Lowest-cost per-student board; HDMI makes video labs possible</td></tr>
+        <tr><td><b>Digilent Basys 3</b></td><td>AMD Artix-7 XC7A35T, 100 MHz, 16 switches and LEDs, 7-segment display, VGA</td><td>AMD Vivado (free edition)</td><td>The classic teaching board; lots of on-board I/O for FSM and datapath labs</td></tr>
+        <tr><td><b>Terasic DE10-Lite</b></td><td>Intel MAX 10, 50 MHz, switches, 7-segment display, VGA, accelerometer</td><td>Intel Quartus Prime Lite</td><td>An equivalent to the Basys 3 for programs standardized on Intel tools</td></tr>
+        <tr><td><b>Radiona ULX3S</b></td><td>Lattice ECP5, SDRAM, HDMI, ESP32 co-processor</td><td>Fully open</td><td>Soft RISC-V cores that boot Linux (e.g. with LiteX) on an open toolchain</td></tr>
+        <tr><td><b>Digilent Arty A7-100T / Nexys A7-100T</b></td><td>AMD Artix-7 100T, DDR memory, Ethernet (Arty)</td><td>AMD Vivado (free edition)</td><td>Pipelined RISC-V core project (weeks 6–7) and SoC labs</td></tr>
+        <tr><td><b>TUL PYNQ-Z2</b></td><td>AMD Zynq-7020: dual Arm Cortex-A9 plus FPGA fabric</td><td>Vivado, Vitis HLS, PYNQ (Python)</td><td>HLS accelerators driven from Python notebooks; hardware/software co-design (weeks 10–13)</td></tr>
+        <tr><td><b>AMD Kria KV260</b></td><td>Zynq UltraScale+ MPSoC (K26 module), runs Ubuntu</td><td>Vivado, Vitis, PYNQ</td><td>Larger accelerators and vision pipelines for capstone projects</td></tr>
+        <tr><td><b>Raspberry Pi Pico 2</b></td><td>RP2350: dual Arm Cortex-M33 or dual RISC-V Hazard3 cores, selectable at boot</td><td>C/C++ SDK, MicroPython</td><td>Real RISC-V silicon to compare with the soft core students build, and a test controller for the bring-up stage</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="grid2">
+    <div class="stack">
+      <h3>The silicon stage</h3>
+      <p style="font-size:.93rem">A full custom chip is out of reach for a course budget. A shared multi-project shuttle is not. Many designs are combined on one die and fabricated together, so each team pays for a small tile instead of a whole wafer.</p>
+      <ul style="margin:0;padding-left:18px;display:grid;gap:6px;font-size:.93rem">
+        <li><b>Tiny Tapeout:</b> an educational program that puts hundreds of small digital designs on one chip using open PDKs. Each design gets a tile with a handful of I/O pins, and the chip ships on a carrier board that selects which design is active.</li>
+        <li><b>Academic multi-project wafer (MPW) services</b> such as Europractice in Europe give universities access to commercial processes for larger designs, with longer lead times and NDAs.</li>
+        <li><b>Open PDKs</b> (SkyWater SKY130, GlobalFoundries GF180MCU, IHP SG13G2) let students run the full flow in Section 04 without signing an NDA.</li>
+      </ul>
+    </div>
+    <div class="stack">
+      <h3>Bring-up: testing the chip you made</h3>
+      <ul style="margin:0;padding-left:18px;display:grid;gap:6px;font-size:.93rem">
+        <li>Plug the carrier board into a bench PC and select your design.</li>
+        <li>Drive inputs from a microcontroller (for example a Pico 2) and capture outputs with the logic analyzer.</li>
+        <li>Re-run the same cocotb tests from Module 5 against the real chip and compare with simulation.</li>
+        <li>Use the oscilloscope to find the highest clock speed at which the design still works, then compare it with the static timing estimate from the flow.</li>
+        <li>Write up the differences between simulation and silicon. This is the most valuable report students produce.</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3>Computers and infrastructure</h3>
+  <div class="checklist">
+    <div><b>Bench PCs</b><span>Linux, 8+ cores, 32 GB RAM, 200 GB free disk. Vivado and the OpenROAD flow are memory-hungry, and 16 GB machines struggle with larger designs.</span></div>
+    <div><b>Agent server</b><span>To run ChipDesignAgent locally for a class, use one shared machine with a GPU. Gemma 4 alone needs about 10 GB, and on CPU a single run takes many minutes.</span></div>
+    <div><b>Licenses</b><span>The free editions of Vivado and Quartus cover the entry boards listed above. Commercial ASIC tools need a university program agreement; the open-source track needs none.</span></div>
+    <div><b>Cloud credits</b><span>Use them for regressions, larger HLS builds and AWS F2 runs (Section 08) instead of buying data-center FPGA cards.</span></div>
+  </div>
+</section>
+
+<!-- ============================== AGENT -->
+<section id="agent">
+  <header>
+    <span class="eyebrow">07 · Case study</span>
+    <h2>ChipDesignAgent: automating the path from code to accelerator</h2>
+    <p class="col">Sections 02–05 describe what a hardware engineer does by hand: profile the code, recognize the computation pattern, restructure it for hardware, and check it still gives the same answers. The keynote's "agentic approach" gives each of those jobs to an AI agent, coordinated by an orchestrator. ChipDesignAgent is a working version of that design, built on Google's Agent Development Kit (ADK) and running a local Gemma 4 model through Ollama. Click a box to see what that agent does and which week of the course it automates.</p>
+  </header>
+
+  <figure>
+    <div class="plate">
+      <svg class="agent-diagram" viewBox="0 0 760 400" role="group" aria-label="Agent architecture: orchestrator in the center connected to profiling, testing and verification, code transformation, and optimization agents">
+        <!-- inputs -->
+        <g>
+          <rect x="10" y="150" width="112" height="100" rx="8" class="f-sunk"/>
+          <text x="66" y="176" class="t-b t-mid">User input</text>
+          <text x="66" y="198" class="t-s t-mid">C / C++ today</text>
+          <text x="66" y="214" class="t-s t-mid">PyTorch, MLIR</text>
+          <text x="66" y="230" class="t-s t-mid">planned</text>
+          <path d="M122 200 H288" class="w" marker-end="url(#arr)"/>
+        </g>
+        <!-- links -->
+        <g class="w">
+          <path d="M330 178 L262 124" marker-end="url(#arr)" marker-start="url(#arr)"/>
+          <path d="M470 178 L538 124" marker-end="url(#arr)" marker-start="url(#arr)"/>
+          <path d="M330 222 L262 276" marker-end="url(#arr)" marker-start="url(#arr)"/>
+          <path d="M470 222 L538 276" marker-end="url(#arr)" marker-start="url(#arr)"/>
+        </g>
+        <g class="node" data-agent="orch" tabindex="0" role="button" aria-pressed="false">
+          <rect class="box" x="292" y="172" width="216" height="56" rx="10" style="fill:var(--c-orch-soft);stroke:var(--c-orch);stroke-width:2;stroke-dasharray:6 4"/>
+          <text x="400" y="198" class="t-b t-mid">Orchestrator</text>
+          <text x="400" y="215" class="t-s t-mid">chip_design_orchestrator</text>
+        </g>
+        <g class="node" data-agent="prof" tabindex="0" role="button" aria-pressed="false">
+          <rect class="box" x="140" y="14" width="230" height="110" rx="10" style="fill:var(--surface);stroke:var(--c-prof);stroke-width:2"/>
+          <text x="255" y="38" class="t-b t-mid">Profiling</text>
+          <rect x="160" y="50" width="190" height="26" rx="5" style="fill:var(--c-prof)"/><text x="255" y="68" class="t t-mid" style="fill:#fff">Bottleneck analysis</text>
+          <rect x="160" y="84" width="190" height="26" rx="5" style="fill:var(--c-prof)"/><text x="255" y="102" class="t t-mid" style="fill:#fff">Pattern matching</text>
+        </g>
+        <g class="node" data-agent="ver" tabindex="0" role="button" aria-pressed="false">
+          <rect class="box" x="430" y="14" width="230" height="110" rx="10" style="fill:var(--surface);stroke:var(--c-ver);stroke-width:2"/>
+          <text x="545" y="38" class="t-b t-mid">Testing / Verification</text>
+          <rect x="450" y="50" width="190" height="26" rx="5" style="fill:var(--c-ver)"/><text x="545" y="68" class="t t-mid" style="fill:#fff">Test generation</text>
+          <rect x="450" y="84" width="190" height="26" rx="5" style="fill:var(--c-ver)"/><text x="545" y="102" class="t t-mid" style="fill:#fff">C-simulation</text>
+        </g>
+        <g class="node" data-agent="xf" tabindex="0" role="button" aria-pressed="false">
+          <rect class="box" x="140" y="276" width="230" height="110" rx="10" style="fill:var(--surface);stroke:var(--c-xf);stroke-width:2"/>
+          <text x="255" y="300" class="t-b t-mid">Code Transformation</text>
+          <rect x="160" y="312" width="190" height="26" rx="5" style="fill:var(--c-xf)"/><text x="255" y="330" class="t t-mid" style="fill:#fff">SW → HLS</text>
+          <rect x="160" y="346" width="190" height="26" rx="5" style="fill:var(--c-xf)"/><text x="255" y="364" class="t t-mid" style="fill:#fff">Synthesizability lint</text>
+        </g>
+        <g class="node" data-agent="opt" tabindex="0" role="button" aria-pressed="false">
+          <rect class="box" x="430" y="276" width="230" height="110" rx="10" style="fill:var(--surface);stroke:var(--c-opt);stroke-width:2"/>
+          <text x="545" y="300" class="t-b t-mid">Optimization</text>
+          <rect x="450" y="312" width="92" height="26" rx="5" style="fill:var(--c-opt)"/><text x="496" y="330" class="t t-mid" style="fill:#fff">AutoSA</text>
+          <rect x="548" y="312" width="92" height="26" rx="5" style="fill:var(--c-opt)"/><text x="594" y="330" class="t t-mid" style="fill:#fff">HARP</text>
+          <rect x="450" y="346" width="92" height="26" rx="5" style="fill:var(--c-opt)"/><text x="496" y="364" class="t-s t-mid" style="fill:#fff">Prometheus</text>
+          <rect x="548" y="346" width="92" height="26" rx="5" style="fill:var(--c-opt)"/><text x="594" y="364" class="t t-mid" style="fill:#fff">LIFT</text>
+        </g>
+        <text x="700" y="200" class="t-s" text-anchor="middle">Gemma 4</text>
+        <text x="700" y="214" class="t-s" text-anchor="middle">via Ollama</text>
+      </svg>
+    </div>
+    <figcaption><span class="figno">FIG 15</span><b>Agent architecture</b>, following the keynote's "Outlook: An Agentic Approach" slide. Each specialist is wrapped as a tool of the orchestrator, so its report comes back and the orchestrator can loop. For example, it sends a failed simulation back to the transformation agent.</figcaption>
+  </figure>
+  <div class="agent-panel" id="agentPanel" aria-live="polite"></div>
+
+  <h3>One run, step by step: a 64×64 matrix multiply</h3>
+  <p class="col" style="font-size:.93rem;color:var(--muted)">The tool outputs below are what the project's tools return on <code>examples/gemm.c</code>, checked by its test suite. In a live run, Gemma 4 decides the order of calls and writes the HLS code itself, so its wording and code will differ from run to run.</p>
+  <div class="btnrow" style="align-items:center"><button class="btn" id="rPrev">← Previous</button><button class="btn" id="rNext">Next step →</button><span class="mono" id="rPos" style="font-size:.8rem;color:var(--muted)"></span></div>
+  <div class="run" id="runBox"></div>
+
+  <div class="pros">
+    <div>
+      <h3>What the design gets right</h3>
+      <ul>
+        <li><b>The LLM does the flexible work.</b> Rewriting arbitrary code and deciding what to try next are things a rule-based compiler can't do.</li>
+        <li><b>Proven tools do the parts that need guarantees.</b> Pattern detection, lint and systolic-array generation are deterministic, and the LLM calls them instead of guessing.</li>
+        <li><b>Verification closes the loop.</b> Each candidate runs against the original code on random inputs. In the tests, an off-by-one bug in the <code>k</code> loop is caught immediately.</li>
+        <li><b>It runs locally.</b> Gemma 4 runs on Ollama, so the code never leaves the machine, which matters for proprietary designs.</li>
+      </ul>
+    </div>
+    <div>
+      <h3>Where it falls short today</h3>
+      <ul>
+        <li><b>C/C++ input only.</b> The PyTorch and MLIR front ends shown on the slide are not built yet.</li>
+        <li><b>Correct but not measured.</b> Without Vitis HLS installed there is no latency or resource feedback, so the loop stops at "passes simulation", not "is fast".</li>
+        <li><b>Shallow analysis.</b> The profiler is a lightweight parser, not a compiler front end. It handles counted loop nests but not pointer aliasing or complex control flow.</li>
+        <li><b>Small-model reliability.</b> A local model can misformat tool calls or stop early. The orchestrator caps retries, but results vary from run to run.</li>
+        <li><b>External optimizers need setup.</b> AutoSA needs Linux or WSL; HARP, Prometheus and LIFT are research code without a standard command-line interface.</li>
+      </ul>
+    </div>
+    <div>
+      <h3>Using it in the course</h3>
+      <ul>
+        <li><b>Week 11 lab:</b> write the GEMM accelerator by hand first, then compare it with the agent's version and explain the differences in pragmas and code structure.</li>
+        <li><b>Week 14 lab:</b> add a convolution pattern to the profiler's pattern matcher and a test for it.</li>
+        <li><b>Project:</b> build an analytical latency estimator (the Section 05 formula applied to each loop nest), so the agent can compare candidates by speed as well as correctness.</li>
+        <li><b>Experiment:</b> run the same kernels with Gemma 4 and a larger model, and measure how often each produces a design that passes simulation.</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3>Discussion questions</h3>
+  <ol class="col" style="margin:0;padding-left:20px;display:grid;gap:8px;font-size:.95rem">
+    <li>The verification agent compares outputs with a relative tolerance of 10⁻⁴. Why is exact equality the wrong test once the HLS version reorders a floating-point sum? When would you require bit-exact results?</li>
+    <li>Passing random-input C-simulation does not prove equivalence. What could a formal tool or targeted corner-case inputs catch that this misses?</li>
+    <li>Which decisions in Fig 15 should stay deterministic and which should an LLM make? Where would you put a human in the loop?</li>
+    <li>If an LLM writes RTL that ships in a chip, who is responsible for a bug found after tapeout? How does this change review practices?</li>
+    <li>Does making chip design accessible to programmers mainly need better models, better tools, or better abstractions? Use the abstraction stack from Section 02 in your argument.</li>
+  </ol>
+</section>
+
+<!-- ============================== CLOUD -->
+<section id="cloud">
+  <header>
+    <span class="eyebrow">08 · Ecosystem</span>
+    <h2>Designing and testing chips on AWS, Google Cloud and Azure</h2>
+    <p class="col">Chip projects need compute in bursts. A verification regression might run ten thousand simulations overnight, and place-and-route of a large block can need hundreds of gigabytes of memory for a day. Then the machines sit idle. Public clouds rent that capacity by the hour, and on AWS you can also rent FPGA boards. This section explains how a cloud design environment is put together, what each provider offers as of November 2026, and how to use it on a student budget.</p>
+  </header>
+
+  <figure>
+    <div class="plate">
+      <svg viewBox="0 0 780 330" role="img" aria-label="Cloud EDA reference architecture: engineer and CI connect to a head node with a scheduler, which dispatches to simulation, place and route, and FPGA pools that share storage, a license server and object storage">
+        <rect x="150" y="8" width="622" height="314" rx="12" style="fill:none;stroke:var(--muted);stroke-width:1.2;stroke-dasharray:6 5"/>
+        <text x="166" y="28" class="t-s">private network (VPC / VNet) · no public IPs on compute</text>
+        <!-- outside -->
+        <rect x="10" y="44" width="116" height="52" rx="8" class="f-sunk"/><text x="68" y="66" class="t-b t-mid">CI</text><text x="68" y="84" class="t-s t-mid">on git push</text>
+        <rect x="10" y="140" width="116" height="66" rx="8" class="f-surf"/><text x="68" y="166" class="t-b t-mid">Engineer</text><text x="68" y="184" class="t-s t-mid">remote desktop</text><text x="68" y="197" class="t-s t-mid">or SSH via VPN</text>
+        <!-- head node -->
+        <rect x="176" y="136" width="128" height="74" rx="8" style="fill:var(--c-orch-soft);stroke:var(--c-orch);stroke-width:2"/>
+        <text x="240" y="164" class="t-b t-mid">Head node</text><text x="240" y="182" class="t-s t-mid">Slurm scheduler</text><text x="240" y="196" class="t-s t-mid">auto-scales pools</text>
+        <path d="M126 173 H172" class="w" marker-end="url(#arr)"/>
+        <path d="M126 70 H150 V150 H172" class="w" marker-end="url(#arr)"/>
+        <!-- pools -->
+        <rect x="348" y="36" width="180" height="62" rx="8" class="f-surf"/><text x="438" y="62" class="t-b t-mid">Simulation pool</text><text x="438" y="80" class="t-s t-mid">many cores · spot pricing</text>
+        <rect x="348" y="142" width="180" height="62" rx="8" class="f-surf"/><text x="438" y="168" class="t-b t-mid">P&amp;R / sign-off pool</text><text x="438" y="186" class="t-s t-mid">high memory · on-demand</text>
+        <rect x="348" y="248" width="180" height="62" rx="8" class="f-soft"/><text x="438" y="274" class="t-b t-mid">FPGA instances</text><text x="438" y="292" class="t-s t-mid">AWS F2 · run only, not build</text>
+        <path d="M304 160 L344 70" class="w" marker-end="url(#arr)"/>
+        <path d="M304 173 H344" class="w" marker-end="url(#arr)"/>
+        <path d="M304 186 L344 276" class="w" marker-end="url(#arr)"/>
+        <!-- services -->
+        <rect x="574" y="36" width="184" height="62" rx="8" class="f-sunk" style="stroke:var(--l-metal);stroke-width:1.6"/><text x="666" y="62" class="t-b t-mid">Shared storage</text><text x="666" y="80" class="t-s t-mid">NFS / Lustre, one design tree</text>
+        <rect x="574" y="142" width="184" height="62" rx="8" class="f-sunk" style="stroke:var(--copper);stroke-width:1.6"/><text x="666" y="168" class="t-b t-mid">License server</text><text x="666" y="186" class="t-s t-mid">FlexLM for commercial tools</text>
+        <rect x="574" y="248" width="184" height="62" rx="8" class="f-sunk" style="stroke:var(--l-diff);stroke-width:1.6"/><text x="666" y="274" class="t-b t-mid">Object storage</text><text x="666" y="292" class="t-s t-mid">results, waveforms, archives</text>
+        <g class="w-dash"><path d="M528 67 H574 M528 173 H574 M528 279 H574 M528 160 L574 84 M528 266 L574 90 M528 80 L574 160"/></g>
+      </svg>
+    </div>
+    <figcaption><span class="figno">FIG 16</span><b>A typical cloud design environment.</b> All three providers support the same shape. A scheduler grows and shrinks separate pools for each kind of job. Everything mounts one shared design tree. Commercial tools check out licenses from a license server inside the private network, and nothing compute-heavy has a public address.</figcaption>
+  </figure>
+
+  <h3>What each provider offers</h3>
+  <div class="tabs" role="tablist" aria-label="Cloud provider" id="provTabs"></div>
+  <div class="prov" id="provBody" role="tabpanel"></div>
+
+  <h3>Pick a service by task</h3>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Task</th><th>AWS</th><th>Google Cloud</th><th>Azure</th></tr></thead>
+      <tbody>
+        <tr><td>Run your design on a real FPGA</td><td>EC2 <b>F2</b> instances</td><td>No FPGA instances</td><td>NP-series until 31 May 2027; not for new projects</td></tr>
+        <tr><td>Cluster for simulation regressions</td><td>ParallelCluster or AWS Batch, Spot Instances</td><td>Cluster Toolkit or Batch, Spot VMs</td><td>CycleCloud or Azure Batch, Spot VMs</td></tr>
+        <tr><td>Shared design storage</td><td>FSx for NetApp ONTAP, FSx for Lustre</td><td>Filestore, Managed Lustre, NetApp Volumes</td><td>Azure NetApp Files, Azure Managed Lustre</td></tr>
+        <tr><td>Secure remote design desktops</td><td>Research and Engineering Studio, Amazon DCV</td><td>Cloud Workstations, or VMs with a remote desktop</td><td>Modeling and Simulation Workbench</td></tr>
+        <tr><td>Commercial EDA as a service</td><td>Cadence Managed Cloud Services; Synopsys Cloud (bring your own cloud)</td><td>Cadence ChipStack AI on the Marketplace; Synopsys Cloud (bring your own cloud)</td><td>Synopsys Cloud SaaS, built with Azure</td></tr>
+        <tr><td>Open-source flow (Verilator, cocotb, OpenROAD)</td><td colspan="3">Any Linux VM or container. Free CI runners also work for small regressions.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="grid2">
+    <figure>
+      <div class="plate">
+        <svg viewBox="0 0 380 250" role="img" aria-label="AWS F2 development flow in five steps: write, build on a CPU instance, create an AFI, load on F2, run the host program">
+          <g id="f2flow"></g>
+        </svg>
+      </div>
+      <figcaption><span class="figno">FIG 17</span><b>Getting a design onto a cloud FPGA (AWS F2).</b> The slow part, synthesis and place-and-route, runs on an ordinary CPU instance using AWS's FPGA developer image. The result is registered as an Amazon FPGA Image (AFI). You pay FPGA-instance prices only while the design is loaded and running.</figcaption>
+    </figure>
+    <figure>
+      <div class="plate">
+        <svg viewBox="0 0 380 250" role="img" aria-label="Regression fan-out: a commit triggers CI, a container image fans out to many parallel simulation jobs, failures are collected and coverage is merged">
+          <g id="fanout"></g>
+        </svg>
+      </div>
+      <figcaption><span class="figno">FIG 18</span><b>Regression fan-out.</b> One commit becomes hundreds of independent simulations, each in the same container image so results are reproducible. Simulations are short and can be retried, which makes them a good fit for cheap spot capacity. Failures (red) and merged coverage come back as one report.</figcaption>
+    </figure>
+  </div>
+
+  <h3>Before you spend money: a checklist</h3>
+  <div class="checklist">
+    <div><b>Licenses</b><span>Commercial tools need licenses that are valid in the cloud. Check the vendor's cloud terms, or use a vendor cloud offering where licensing is included. Open-source tools need no licenses, which is a big reason courses use them.</span></div>
+    <div><b>Protect the design</b><span>Chip designs are valuable IP. Use a private network, no public IPs on compute, encryption at rest, and remote desktops so data never reaches laptops. Managed workspaces such as Azure's workbench bundle these controls.</span></div>
+    <div><b>Spot interruptions</b><span>Spot capacity is much cheaper but can be reclaimed at short notice. Use it for short, restartable simulations. Don't use it for a day-long place-and-route run unless the tool can checkpoint.</span></div>
+    <div><b>Data egress</b><span>Downloading large waveform files costs money and time. Keep data in the cloud, view waveforms on a remote desktop, and archive old runs to cold object storage.</span></div>
+    <div><b>Right-size machines</b><span>Simulation scales with core count. Place-and-route and sign-off are limited by memory and single-thread speed. A single machine shape for everything wastes money on one of the two.</span></div>
+    <div><b>Shut it down</b><span>An idle FPGA or high-memory instance still bills by the hour. Set budget alerts and auto-stop rules on day one.</span></div>
+  </div>
+
+  <div class="grid2">
+    <div class="stack">
+      <h3>A cloud lab plan for this course</h3>
+      <ul style="margin:0;padding-left:18px;display:grid;gap:6px;font-size:.93rem">
+        <li><b>Week 5:</b> run Verilator and cocotb tests on every push with a free CI service. No cloud account needed.</li>
+        <li><b>Week 8:</b> fan the cocotb regression out to a small spot-instance pool (Fig 18) and compare wall-clock time with your laptop.</li>
+        <li><b>Week 11:</b> build the GEMM accelerator on a cloud VM with AMD's no-cost Vitis HLS and read the synthesis report. This is the latency feedback missing from the local agent setup.</li>
+        <li><b>Week 12:</b> run the OpenROAD/OpenLane flow in a container on a high-memory VM.</li>
+        <li><b>Project, optional:</b> deploy on AWS F2 for a few hours and measure real throughput.</li>
+      </ul>
+      <p style="font-size:.88rem;color:var(--muted)">All three providers run student or education credit programs (AWS Educate and AWS Academy, Google Cloud education credits, Azure for Students). Amounts and eligibility change, so check the current terms before planning a budget around them.</p>
+    </div>
+    <div class="stack">
+      <h3>How this connects to ChipDesignAgent</h3>
+      <ul style="margin:0;padding-left:18px;display:grid;gap:6px;font-size:.93rem">
+        <li><b>The missing performance signal.</b> Running <code>run_hls_synthesis</code> on a cloud VM with Vitis HLS gives the optimization agent real latency and resource numbers, so the loop can improve speed as well as correctness.</li>
+        <li><b>Parallel verification.</b> The verification agent can send many testbench variants to a cloud pool instead of running them one at a time.</li>
+        <li><b>Bigger models when needed.</b> Gemma 4 can run on a cloud GPU VM, or a single agent's model can be switched to a hosted one through <code>CHIP_AGENT_MODEL_&lt;ROLE&gt;</code>, while the code stays in your private network.</li>
+        <li><b>Industry is heading the same way.</b> In April 2026 Cadence announced its ChipStack AI Super Agent on the Google Cloud Marketplace, integrated with Gemini. Synopsys has shown agentic chip-design workflows for evaluation on Microsoft Discovery.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="stack">
+    <h3>Sources</h3>
+    <ul class="sources">
+      <li><a href="https://aws.amazon.com/about-aws/whats-new/2024/12/amazon-ec2-f2-instances-8-fpgas" target="_blank" rel="noopener">AWS: EC2 F2 instances with up to 8 FPGAs are generally available</a></li>
+      <li><a href="https://github.com/aws/aws-fpga" target="_blank" rel="noopener">aws/aws-fpga on GitHub: F2 development kit and F1 retirement notice</a></li>
+      <li><a href="https://aws.amazon.com/blogs/hpc/evaluating-next-generation-cloud-compute-for-large-scale-genomic-processing" target="_blank" rel="noopener">AWS HPC Blog: F1 vs F2 comparison</a></li>
+      <li><a href="https://learn.microsoft.com/en-ca/Azure/virtual-machines/sizes/fpga-accelerated/np-family" target="_blank" rel="noopener">Microsoft Learn: NP-family FPGA VM sizes</a> and <a href="https://learn.microsoft.com/en-us/lifecycle/announcements/azure/virtual-machine-sizes-retirement-list-2026" target="_blank" rel="noopener">VM retirement list</a></li>
+      <li><a href="https://learn.microsoft.com/azure/modeling-simulation-workbench/modeling-simulation-workbench-overview" target="_blank" rel="noopener">Microsoft Learn: What is Azure Modeling and Simulation Workbench?</a></li>
+      <li><a href="https://azure.microsoft.com/en-us/blog/designing-azure-silicon-on-azure-silicon-eda-workloads-on-cobalt-200/" target="_blank" rel="noopener">Azure blog: EDA workloads on Cobalt 200</a></li>
+      <li><a href="https://synopsys.com/cloud" target="_blank" rel="noopener">Synopsys Cloud</a> and <a href="https://runtimewire.com/article/synopsys-autonomous-chip-design-agents-microsoft-discovery-amd" target="_blank" rel="noopener">Synopsys agentic workflows on Microsoft Discovery</a></li>
+      <li><a href="https://www.businesswire.com/news/home/20260415910313/en/" target="_blank" rel="noopener">Cadence and Google Cloud: ChipStack AI Super Agent (April 2026)</a> and <a href="https://community.cadence.com/cadence_blogs_8/b/cloud/posts/accelerating-semiconductor-innovation-at-cloud-scale" target="_blank" rel="noopener">Cadence cloud blog</a></li>
+    </ul>
+    <p style="font-size:.82rem;color:var(--muted)">Cloud catalogues change quickly. Statuses on this page were checked in November 2026; confirm with the provider before planning a project around a specific instance type.</p>
+  </div>
+</section>
+
+<!-- ============================== QUIZ -->
+<section id="check">
+  <header>
+    <span class="eyebrow">09 · Self-check</span>
+    <h2>Five questions before you move on</h2>
+  </header>
+  <div class="grid2" id="quiz"></div>
+</section>
+
+<footer>
+  <span>The architecture in Section 07 follows the "Outlook: An Agentic Approach" slide from the DAC 62 Day 3 keynote, "Democratize Chip Design — with Deep Learning and Automated Code Transformation".</span>
+  <span>All diagrams on this page are simplified teaching illustrations, not to scale. Course weights and schedule are a suggested template.</span>
+</footer>
+</div>
+
+<script>
+(function () {
+  const $ = (s) => document.querySelector(s);
+  const NS = "http://www.w3.org/2000/svg";
+  const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+  /* ---------------- abstraction stack ---------------- */
+  const codeLines = (lines, x, y, accentIdx = []) =>
+    lines.map((l, i) => `<text x="${x}" y="${y + i * 18}" class="${accentIdx.includes(i) ? "t-acc" : "t"}" xml:space="preserve">${esc(l)}</text>`).join("");
+
+  const LAYERS = [
+    { id: "app", name: "Application", lvl: "L7", analogy: "Your program", tools: "PyTorch, NumPy, C/C++",
+      what: "The problem stated as software, for example a neural network layer or an image filter. Nothing here says how the hardware should look.",
+      svg: `<svg viewBox="0 0 360 190"><rect x="14" y="14" width="332" height="162" rx="8" class="f-sunk"/>${codeLines(["import torch", "", "x = torch.randn(64, 64)", "W = torch.randn(64, 64)", "y = torch.relu(x @ W + b)", "", "# 262,144 multiply-adds"], 30, 40, [4])}</svg>` },
+    { id: "alg", name: "Algorithm / dataflow", lvl: "L6", analogy: "Expression tree / IR", tools: "MLIR (linalg, affine), compiler IRs",
+      what: "The same computation as a graph of operations and the data moving between them. Patterns like matrix multiply and stencils are easiest to spot here.",
+      svg: `<svg viewBox="0 0 360 190"><circle cx="40" cy="60" r="20" class="f-surf"/><text x="40" y="64" class="t t-mid">x</text><circle cx="40" cy="140" r="20" class="f-surf"/><text x="40" y="144" class="t t-mid">W</text><circle cx="140" cy="100" r="22" class="f-soft"/><text x="140" y="105" class="t-b t-mid">@</text><circle cx="140" cy="170" r="14" class="f-surf"/><text x="140" y="174" class="t-s t-mid">b</text><circle cx="230" cy="100" r="22" class="f-surf"/><text x="230" y="105" class="t-b t-mid">+</text><rect x="276" y="84" width="60" height="32" rx="6" class="f-surf"/><text x="306" y="105" class="t t-mid">relu</text><path d="M58 68 L118 92 M58 132 L118 108 M162 100 H206 M150 158 L216 118 M252 100 H274" class="w" marker-end="url(#arr)"/><text x="140" y="70" class="t-s t-mid">matmul</text></svg>` },
+    { id: "hls", name: "HLS C++", lvl: "L5", analogy: "C with performance annotations", tools: "Vitis HLS, Bambu, Google XLS",
+      what: "C or C++ in a restricted style: fixed sizes and no dynamic memory. Pragmas tell the tool how to build hardware from it, for example how many cycles apart iterations may start.",
+      svg: `<svg viewBox="0 0 360 190"><rect x="14" y="14" width="332" height="162" rx="8" class="f-sunk"/>${codeLines(["void gemm(float A[64][64], ...) {", "#pragma HLS INTERFACE m_axi port=A", "  for (int i = 0; i < 64; i++)", "    for (int k = 0; k < 64; k++)", "      for (int j = 0; j < 64; j++) {", "#pragma HLS PIPELINE II=1", "        acc[j] += A[i][k] * B[k][j];"], 26, 40, [1, 5])}</svg>` },
+    { id: "rtl", name: "RTL", lvl: "L4", analogy: "Assembly for hardware", tools: "Verilog, SystemVerilog, Chisel",
+      what: "Register-transfer level: registers, and the logic that computes their next values each clock cycle. HLS tools produce this, and engineers also write it by hand.",
+      svg: `<svg viewBox="0 0 360 190"><text x="20" y="22" class="t-s">always @(posedge clk) y &lt;= a + b;</text><rect x="20" y="44" width="56" height="36" rx="3" class="f-surf"/><text x="48" y="67" class="t t-mid">a</text><rect x="20" y="114" width="56" height="36" rx="3" class="f-surf"/><text x="48" y="137" class="t t-mid">b</text><circle cx="170" cy="97" r="22" class="f-soft"/><text x="170" y="102" class="t-b t-mid">+</text><rect x="262" y="79" width="56" height="36" rx="3" class="f-surf"/><text x="290" y="102" class="t t-mid">y</text><path d="M76 62 H120 L150 86 M76 132 H120 L150 108 M192 97 H262" class="w" marker-end="url(#arr)"/><path d="M20 176 H318 M48 176 V150 M48 176 V158 M290 176 V115" class="w-dash"/><text x="330" y="180" class="t-s">clk</text></svg>` },
+    { id: "gate", name: "Gate netlist", lvl: "L3", analogy: "Machine code", tools: "Yosys, Synopsys DC, Cadence Genus",
+      what: "Logic synthesis turns RTL into a network of gates from a cell library. This example is a half adder: one XOR gate for the sum and one AND gate for the carry.",
+      svg: `<svg viewBox="0 0 360 190"><path d="M170 37 q15 15 0 30 q25 0 40 -15 q-15 -15 -40 -15 z" class="f-surf"/><path d="M163 37 q15 15 0 30" class="w"/><path d="M170 117 h20 a15 15 0 0 1 0 30 h-20 z" class="f-surf"/><path d="M30 44 H172 M30 60 H172 M90 44 V124 H170 M120 60 V140 H170" class="w"/><circle cx="90" cy="44" r="3" class="f-ink"/><circle cx="120" cy="60" r="3" class="f-ink"/><path d="M210 52 H300 M205 132 H300" class="w-acc"/><text x="16" y="48" class="t-b">a</text><text x="16" y="64" class="t-b">b</text><text x="306" y="56" class="t-acc">sum = a⊕b</text><text x="306" y="136" class="t-acc">carry</text><text x="306" y="150" class="t-acc">= a·b</text></svg>` },
+    { id: "tr", name: "Transistors", lvl: "L2", analogy: "Microarchitecture", tools: "SPICE, standard-cell libraries",
+      what: "Each gate is a few transistors acting as switches. An inverter is one PMOS and one NMOS transistor (Fig 3). Cell designers size them to trade speed against power.",
+      svg: `<svg viewBox="0 0 360 190"><path d="M150 14 H230 M190 14 V40 H175 M175 36 V70 M165 38 V68 M175 66 H190 V120 H175 M175 100 V134 M165 102 V132 M175 130 H190 V170 M178 170 H202 M182 176 H198" class="w"/><circle cx="160" cy="53" r="4" class="f-surf"/><path d="M90 53 H156 M90 117 H165 M90 53 V117 M40 85 H90" class="w"/><path d="M190 93 H280" class="w-acc"/><text x="30" y="80" class="t-b">in</text><text x="286" y="97" class="t-acc">out</text><text x="236" y="18" class="t-s">VDD</text><text x="206" y="178" class="t-s">GND</text><text x="110" y="46" class="t-s">P</text><text x="110" y="112" class="t-s">N</text></svg>` },
+    { id: "lay", name: "Physical layout", lvl: "L1", analogy: "The binary file", tools: "OpenROAD, KLayout, Magic, Innovus",
+      what: "The actual shapes on each manufacturing layer: diffusion (green), polysilicon gates (red) and metal wires (blue). A transistor forms wherever poly crosses diffusion. This file goes to the fab.",
+      svg: `<svg viewBox="0 0 360 190"><rect x="60" y="10" width="200" height="22" class="l-metal"/><rect x="60" y="158" width="200" height="22" class="l-metal"/><rect x="60" y="32" width="200" height="66" class="l-well"/><rect x="90" y="46" width="140" height="36" class="l-diff"/><rect x="90" y="110" width="140" height="30" class="l-diff"/><rect x="152" y="38" width="14" height="112" class="l-poly"/><rect x="200" y="56" width="16" height="78" class="l-metal"/><rect x="100" y="24" width="16" height="36" class="l-metal"/><rect x="100" y="128" width="16" height="36" class="l-metal"/><g class="f-ink"><rect x="104" y="58" width="8" height="8"/><rect x="104" y="120" width="8" height="8"/><rect x="204" y="60" width="8" height="8"/><rect x="204" y="120" width="8" height="8"/></g><text x="270" y="25" class="t-s">VDD</text><text x="270" y="173" class="t-s">GND</text><text x="270" y="70" class="t-s">PMOS</text><text x="270" y="128" class="t-s">NMOS</text><text x="132" y="104" class="t-s">in</text><text x="222" y="100" class="t-s">out</text></svg>` },
+  ];
+  const layersEl = $("#layers"), detailEl = $("#layerDetail");
+  LAYERS.forEach((L, i) => {
+    const b = document.createElement("button");
+    b.type = "button"; b.id = "layer-" + L.id;
+    b.innerHTML = `<span>${L.name}</span><span class="lvl">${L.lvl}</span>`;
+    b.addEventListener("click", () => showLayer(i));
+    layersEl.appendChild(b);
+  });
+  function showLayer(i) {
+    const L = LAYERS[i];
+    [...layersEl.children].forEach((b, j) => b.setAttribute("aria-pressed", String(i === j)));
+    detailEl.innerHTML = `
+      <figure><div class="plate">${L.svg}</div>
+      <figcaption><span class="figno">FIG 2.${i + 1}</span><b>${L.name}.</b> ${L.what}</figcaption></figure>
+      <dl class="kv"><dt>Software analogy</dt><dd>${L.analogy}</dd><dt>Tools</dt><dd>${L.tools}</dd>
+      <dt>Down one layer</dt><dd>${i < LAYERS.length - 1 ? "Translated into <b>" + LAYERS[i + 1].name + "</b>" : "Sent to the fab as a GDSII/OASIS file"}</dd></dl>`;
+  }
+  showLayer(2);
+
+  /* ---------------- design flow ---------------- */
+  const FLOW = [
+    { n: "Specification", s: "what & how fast", both: "Define the function, interfaces, throughput, latency, power and area targets. In software terms this is the API contract plus a performance budget.",
+      fpga: "Target board and device are chosen up front, which fixes the available LUTs, BRAM and DSPs.", asic: "The process node (e.g. 130 nm or 7 nm) and a die-area budget are chosen. Mask costs make this decision expensive to change." },
+    { n: "Architecture", s: "blocks & dataflow", both: "Split the design into blocks, decide what runs in parallel, and size the memories. This is where the patterns from Section 05 (systolic arrays, line buffers) are chosen.",
+      fpga: "Map large memories onto BRAM and arithmetic onto DSP columns.", asic: "Custom SRAM macros and clock domains are planned in." },
+    { n: "RTL / HLS", s: "describe it", both: "Write Verilog by hand, or C++ for an HLS tool to translate. This is where ChipDesignAgent's transformation agent works.",
+      fpga: "HLS is common for FPGAs because iterating is cheap.", asic: "Hand-written RTL is still dominant for critical blocks; HLS is used more and more for datapaths." },
+    { n: "Verification", s: "is it right?", both: "Testbenches, random stimulus, assertions and formal checks. In industry verification takes more effort than design, often over half of the project.",
+      fpga: "Bugs can be fixed by reprogramming, but finding them on the board is slow.", asic: "A bug that reaches silicon can cost a respin of months and millions of dollars, so verification is exhaustive." },
+    { n: "Synthesis", s: "RTL → gates", both: "The tool maps RTL to the target's primitive elements and optimizes the logic.",
+      fpga: "Maps logic to LUTs, flip-flops, BRAM and DSP blocks (Fig 10).", asic: "Maps logic to standard cells from the foundry library (Fig 11)." },
+    { n: "Place & route", s: "where & wires", both: "Choose a physical location for every element and connect them. This is a huge optimization problem; recent research applies machine learning to it.",
+      fpga: "Places onto fixed sites and configures the programmable routing switches.", asic: "Floorplanning, cell placement, clock-tree synthesis and routing on many metal layers." },
+    { n: "Sign-off", s: "timing, power, rules", both: "Static timing analysis checks every path against the clock (Fig 8). Power is estimated from switching activity.",
+      fpga: "Timing closure: the tool reports whether the target clock is met.", asic: "Also DRC (manufacturing rules) and LVS (layout matches the schematic) before tapeout." },
+    { n: "Deploy", s: "bitstream / tapeout", both: "The finished design is shipped.",
+      fpga: "Generate a bitstream and program the board in seconds. You can iterate the same day.", asic: "Tapeout: the GDSII layout goes to the foundry, and chips come back after weeks to months." },
+  ];
+  let step = 0, target = "fpga";
+  const strip = $("#flowStrip");
+  FLOW.forEach((f, i) => {
+    const b = document.createElement("button");
+    b.type = "button"; b.setAttribute("role", "listitem");
+    b.innerHTML = `<small>step ${i + 1}</small>${f.n}<small>${f.s}</small>`;
+    b.addEventListener("click", () => { step = i; renderFlow(); });
+    strip.appendChild(b);
+  });
+  function flowFigure(i) {
+    // a mini pipeline of the 8 steps with the current one highlighted, plus a target-specific glyph
+    const W = 360, boxes = FLOW.map((f, j) => {
+      const x = 8 + (j % 4) * 88, y = j < 4 ? 14 : 96;
+      const on = j === i, past = j < i;
+      return `<rect x="${x}" y="${y}" width="80" height="56" rx="6" class="${on ? "f-soft" : past ? "f-sunk" : "f-surf"}" ${on ? 'style="stroke-width:2.4"' : ""}/>
+        <text x="${x + 40}" y="${y + 26}" class="t-s t-mid">step ${j + 1}</text>
+        <text x="${x + 40}" y="${y + 42}" class="t t-mid" style="font-size:10.5px">${f.n.replace("Place & route", "P&amp;R").replace("Specification", "Spec")}</text>`;
+    }).join("");
+    const arrows = [0, 1, 2].map((j) => `<path d="M${88 + j * 88} 42 H${96 + j * 88}" class="w" marker-end="url(#arr)"/>`).join("")
+      + `<path d="M340 70 V82 H48 V94" class="w" marker-end="url(#arr)"/>`
+      + [0, 1, 2].map((j) => `<path d="M${88 + j * 88} 124 H${96 + j * 88}" class="w" marker-end="url(#arr)"/>`).join("");
+    const end = target === "fpga"
+      ? `<rect x="120" y="170" width="120" height="40" rx="5" class="f-sunk"/><g class="w-thin">${[0,1,2,3,4,5].map(k=>`<rect x="${128+k*18}" y="178" width="12" height="10"/><rect x="${128+k*18}" y="192" width="12" height="10"/>`).join("")}</g><text x="250" y="195" class="t-s">bitstream → board</text>`
+      : `<rect x="140" y="166" width="48" height="48" rx="3" class="f-soft"/><g class="w-thin"><path d="M150 166 v-6 M164 166 v-6 M178 166 v-6 M150 214 v6 M164 214 v6 M178 214 v6"/></g><text x="200" y="195" class="t-s">GDSII → foundry → die</text>`;
+    return `<svg viewBox="0 0 ${W} 226">${boxes}${arrows}${end}</svg>`;
+  }
+  function renderFlow() {
+    const f = FLOW[step];
+    [...strip.children].forEach((b, j) => { if (j === step) b.setAttribute("aria-current", "step"); else b.removeAttribute("aria-current"); });
+    $("#flowText").innerHTML = `<span class="eyebrow">Step ${step + 1} of ${FLOW.length} · ${target.toUpperCase()}</span><h3>${esc(f.n)}</h3><p>${f.both}</p><p><b>${target === "fpga" ? "On an FPGA:" : "On an ASIC:"}</b> ${target === "fpga" ? f.fpga : f.asic}</p>`;
+    $("#flowFig").innerHTML = flowFigure(step);
+    $("#flowCap").innerHTML = `<span class="figno">FIG 4.${step + 1}</span>${target === "fpga" ? "The FPGA flow ends in a bitstream you can reload any time." : "The ASIC flow ends in a layout file that is manufactured once."}`;
+    $("#fPrev").disabled = step === 0; $("#fNext").disabled = step === FLOW.length - 1;
+  }
+  $("#fPrev").onclick = () => { step = Math.max(0, step - 1); renderFlow(); };
+  $("#fNext").onclick = () => { step = Math.min(FLOW.length - 1, step + 1); renderFlow(); };
+  const setT = (t) => { target = t; $("#tFPGA").setAttribute("aria-pressed", t === "fpga"); $("#tASIC").setAttribute("aria-pressed", t === "asic"); renderFlow(); };
+  $("#tFPGA").onclick = () => setT("fpga"); $("#tASIC").onclick = () => setT("asic");
+  renderFlow();
+
+  /* ---------------- FPGA fabric + LUT ---------------- */
+  (function () {
+    let s = "";
+    for (let c = 0; c < 9; c++) for (let r = 0; r < 9; r++) {
+      const x = 20 + c * 23, y = 20 + r * 22;
+      if (c === 3) { if (r % 2 === 0) s += `<rect x="${x}" y="${y}" width="17" height="38" rx="2" class="f-soft"/>`; continue; }
+      if (c === 6) { if (r % 3 === 0) s += `<rect x="${x}" y="${y}" width="17" height="60" rx="2" class="l-metal"/>`; continue; }
+      s += `<rect x="${x}" y="${y}" width="17" height="16" rx="2" style="fill:var(--surface);stroke:var(--muted);stroke-width:.8"/>`;
+    }
+    $("#fabric").innerHTML = s;
+    const tt = [0,1,1,0,1,0,0,1,1,0,0,1,0,1,1,0];
+    let l = "";
+    tt.forEach((v, i) => { l += `<rect x="262" y="${66 + i * 7.4}" width="22" height="7" style="fill:${v ? "var(--copper)" : "var(--sunk)"};stroke:var(--line);stroke-width:.5"/>`; });
+    l += `<path d="M296 70 L322 86 V172 L296 188 Z" class="f-surf"/><text x="309" y="133" class="t-s t-mid">MUX</text><path d="M284 128 H296 M322 129 H342" class="w"/><path d="M309 196 V180" class="w"/><text x="309" y="206" class="t-s t-mid">a b c d</text><text x="273" y="198" class="t-s t-mid">SRAM</text>`;
+    $("#lut").innerHTML = l;
+  })();
+
+  /* ---------------- standard cells ---------------- */
+  (function () {
+    let s = "";
+    const widths = [[30, 18, 42, 24, 30, 54, 18, 36, 42], [24, 48, 30, 18, 36, 24, 42, 30, 36], [42, 18, 30, 54, 24, 30, 18, 48, 24], [36, 24, 18, 42, 30, 48, 24, 30, 36]];
+    for (let r = 0; r < 4; r++) {
+      const y = 22 + r * 52;
+      s += `<rect x="8" y="${y - 8}" width="344" height="6" class="l-metal"/>`;
+      let x = 12;
+      widths[r].forEach((w, k) => {
+        if (x + w > 348) return;
+        s += `<rect x="${x}" y="${y}" width="${w - 3}" height="36" rx="2" class="${(r + k) % 4 === 0 ? "f-soft" : "f-surf"}" style="stroke-width:1"/>`;
+        x += w;
+      });
+    }
+    s += `<rect x="8" y="${22 + 4 * 52 - 8}" width="344" height="6" class="l-metal"/>`;
+    s += `<path d="M40 40 V120 H160 V170 M110 60 H260 V40 M200 90 V200 H300 M70 140 H140 V92" style="fill:none;stroke:var(--l-metal);stroke-width:3;opacity:.85"/>`;
+    s += `<text x="352" y="12" class="t-s" text-anchor="end">VDD / GND rails</text>`;
+    $("#cells").innerHTML = s;
+  })();
+
+  /* ---------------- systolic array ---------------- */
+  (function () {
+    let s = "";
+    const x0 = 90, y0 = 60, d = 56;
+    for (let r = 0; r < 4; r++) for (let c = 0; c < 4; c++) {
+      const x = x0 + c * d, y = y0 + r * 44;
+      s += `<rect x="${x}" y="${y}" width="40" height="30" rx="4" class="${(r + c) === 3 ? "f-soft" : "f-surf"}" style="stroke-width:1.2"/><text x="${x + 20}" y="${y + 19}" class="t-s t-mid">PE</text>`;
+      if (c < 3) s += `<path d="M${x + 40} ${y + 15} H${x + d - 2}" class="w-acc" marker-end="url(#arr-acc)"/>`;
+      if (r < 3) s += `<path d="M${x + 20} ${y + 30} V${y + 42}" class="w" marker-end="url(#arr)"/>`;
+    }
+    for (let r = 0; r < 4; r++) {
+      const y = y0 + r * 44 + 15;
+      const skew = Array.from({ length: r }, () => "·").join(" ");
+      s += `<text x="${x0 - 8}" y="${y + 4}" class="t-acc" text-anchor="end">${skew ? skew + " " : ""}a${r}</text><path d="M${x0 - 6} ${y} H${x0 - 2}" class="w-acc" marker-end="url(#arr-acc)"/>`;
+    }
+    for (let c = 0; c < 4; c++) s += `<text x="${x0 + c * d + 20}" y="${y0 - 26 + 0}" class="t t-mid">b${c}</text><path d="M${x0 + c * d + 20} ${y0 - 20} V${y0 - 2}" class="w" marker-end="url(#arr)"/>`;
+    s += `<text x="180" y="18" class="t-s t-mid">each PE: c += a × b, then pass a right and b down</text>`;
+    s += `<text x="180" y="246" class="t-s t-mid">inputs are skewed in time (·) so matching values meet</text>`;
+    $("#systolic").innerHTML = s;
+  })();
+
+  /* ---------------- stencil ---------------- */
+  (function () {
+    let s = "";
+    const x0 = 24, y0 = 24, c = 22, n = 8;
+    for (let r = 0; r < n; r++) for (let k = 0; k < n; k++) {
+      let cls = "f-surf";
+      if (r === 2 || r === 3) cls = "f-soft";
+      s += `<rect x="${x0 + k * c}" y="${y0 + r * c}" width="${c}" height="${c}" class="${cls}" style="stroke-width:.7"/>`;
+    }
+    const cx = 4, cy = 3;
+    [[0, 0], [0, -1], [0, 1], [-1, 0], [1, 0]].forEach(([dy, dx]) => {
+      s += `<rect x="${x0 + (cx + dx) * c + 3}" y="${y0 + (cy + dy) * c + 3}" width="${c - 6}" height="${c - 6}" rx="3" class="l-metal"/>`;
+    });
+    s += `<rect x="${x0}" y="${y0 + 4 * c}" width="${(cx + 2) * c}" height="${c}" style="fill:none;stroke:var(--copper);stroke-width:2;stroke-dasharray:4 3"/>`;
+    s += `<text x="${x0 + n * c + 12}" y="${y0 + 2 * c + 16}" class="t-acc">line buffers</text><text x="${x0 + n * c + 12}" y="${y0 + 2 * c + 32}" class="t-s">(2 rows on chip)</text>`;
+    s += `<text x="${x0 + n * c + 12}" y="${y0 + 4 * c + 16}" class="t-s">newest row</text><text x="${x0 + n * c + 12}" y="${y0 + 4 * c + 30}" class="t-s">streaming in</text>`;
+    s += `<text x="${x0 + n * c + 12}" y="${y0 + 0.5 * c + 10}" class="t-s">5-point</text><text x="${x0 + n * c + 12}" y="${y0 + 0.5 * c + 24}" class="t-s">window (blue)</text>`;
+    s += `<text x="${x0 + n * c / 2}" y="${y0 + n * c + 22}" class="t-s t-mid">B[i][j] = 0.2·(A[i][j] + 4 neighbours)</text>`;
+    $("#stencil").innerHTML = s;
+  })();
+
+  /* ---------------- pipeline calculator + gantt ---------------- */
+  const U = [1, 2, 4, 8];
+  function calc() {
+    const N = +$("#pN").value, D = +$("#pD").value, II = +$("#pII").value, u = U[+$("#pU").value];
+    $("#oN").textContent = N; $("#oD").textContent = D; $("#oII").textContent = II; $("#oU").textContent = "×" + u;
+    const groups = Math.ceil(N / u);
+    const seq = N * D, pipe = D + (groups - 1) * II;
+    $("#sSeq").textContent = seq; $("#sPipe").textContent = pipe; $("#sSpd").textContent = (seq / pipe).toFixed(1) + "×";
+    const rows = Math.min(groups, 6), cols = Math.min(D + (rows - 1) * II, 28);
+    const cw = 20, rh = 26, lx = 74, top = 26;
+    const W = lx + cols * cw + 10, H = top + rows * rh + 30;
+    const g = $("#gantt");
+    g.setAttribute("viewBox", `0 0 ${W} ${H}`);
+    let s = "";
+    for (let c = 0; c <= cols; c++) s += `<path d="M${lx + c * cw} ${top - 4} V${top + rows * rh}" class="w-thin" style="opacity:.35"/>`;
+    for (let c = 0; c < cols; c += (cols > 16 ? 2 : 1)) s += `<text x="${lx + c * cw + cw / 2}" y="${top - 10}" class="t-s t-mid">${c}</text>`;
+    const shades = ["var(--copper)", "var(--l-metal)", "var(--l-diff)", "var(--l-poly)", "var(--c-ver)", "var(--c-orch)", "var(--muted)", "var(--c-prof)"];
+    for (let r = 0; r < rows; r++) {
+      const y = top + r * rh;
+      const label = u > 1 ? `it ${r * u}–${Math.min(N, r * u + u) - 1}` : `iter ${r}`;
+      s += `<text x="${lx - 8}" y="${y + 17}" class="t-s" text-anchor="end">${label}</text>`;
+      for (let st = 0; st < D; st++) {
+        const c = r * II + st;
+        if (c >= cols) break;
+        s += `<rect x="${lx + c * cw + 1.5}" y="${y + 4}" width="${cw - 3}" height="${rh - 8}" rx="3" style="fill:${shades[st % shades.length]};opacity:.85"/>`;
+        if (u > 1) s += `<text x="${lx + c * cw + cw / 2}" y="${y + 17}" class="t-s t-mid" style="fill:var(--bg);font-size:9px">×${u}</text>`;
+      }
+    }
+    s += `<text x="${lx}" y="${H - 8}" class="t-s">clock cycle →  (colours = pipeline stages)</text>`;
+    g.innerHTML = s;
+    $("#ganttCap").innerHTML = `<span class="figno">FIG 12</span><b>Pipeline schedule.</b> A new ${u > 1 ? "group of " + u + " iterations" : "iteration"} starts every ${II} cycle${II > 1 ? "s" : ""}, so up to ${Math.min(D, Math.ceil(D / II))} are in flight at once. ${groups > rows ? `Showing the first ${rows} of ${groups} rows.` : ""} ${II > 1 ? "II > 1 is usually caused by a memory-port conflict or a loop-carried dependence, such as a floating-point accumulator." : ""}`;
+  }
+  ["#pN", "#pD", "#pII", "#pU"].forEach((id) => $(id).addEventListener("input", calc));
+  calc();
+
+  /* ---------------- curriculum ---------------- */
+  const thumbs = {
+    gate: `<svg viewBox="0 0 88 64"><path d="M24 16 h18 a16 16 0 0 1 0 32 h-18 z" class="f-surf"/><path d="M8 24 H24 M8 40 H24 M58 32 H78" class="w"/></svg>`,
+    ff: `<svg viewBox="0 0 88 64"><polyline points="6,44 18,44 18,20 32,20 32,44 46,44 46,20 60,20 60,44 74,44 74,20 82,20" class="w-acc"/></svg>`,
+    code: `<svg viewBox="0 0 88 64"><rect x="8" y="10" width="72" height="44" rx="4" class="f-surf"/><path d="M18 24 H52 M24 32 H64 M24 40 H46" class="w-thin" style="stroke-width:2"/></svg>`,
+    cpu: `<svg viewBox="0 0 88 64"><g class="w-thin"><path d="M16 22 h56 M16 42 h56"/></g>${[0,1,2,3,4].map(k=>`<rect x="${10+k*14}" y="16" width="12" height="32" rx="2" class="${k===2?'f-soft':'f-surf'}" style="stroke-width:1"/>`).join("")}</svg>`,
+    check: `<svg viewBox="0 0 88 64"><rect x="14" y="10" width="60" height="44" rx="4" class="f-surf"/><path d="M28 32 l10 10 l22 -20" class="w-acc" style="stroke-width:3"/></svg>`,
+    fpga: `<svg viewBox="0 0 88 64">${[0,1,2,3,4].map(c=>[0,1,2].map(r=>`<rect x="${10+c*14}" y="${10+r*15}" width="10" height="10" rx="1" class="${c===2?'f-soft':'f-surf'}" style="stroke-width:.8"/>`).join("")).join("")}</svg>`,
+    sys: `<svg viewBox="0 0 88 64">${[0,1,2].map(r=>[0,1,2].map(c=>`<rect x="${18+c*20}" y="${8+r*18}" width="14" height="12" rx="2" class="f-surf" style="stroke-width:1"/>`).join("")).join("")}<path d="M6 14 H16 M6 32 H16 M6 50 H16" class="w-acc"/></svg>`,
+    chip: `<svg viewBox="0 0 88 64"><rect x="24" y="12" width="40" height="40" rx="3" class="f-soft"/><rect x="30" y="18" width="12" height="12" class="l-metal"/><rect x="46" y="18" width="12" height="28" class="l-diff"/><rect x="30" y="34" width="12" height="12" class="l-poly"/></svg>`,
+    link: `<svg viewBox="0 0 88 64"><rect x="6" y="20" width="30" height="24" rx="3" class="f-surf"/><rect x="52" y="20" width="30" height="24" rx="3" class="f-soft"/><path d="M36 28 H52 M52 36 H36" class="w" marker-end="url(#arr)"/></svg>`,
+    ai: `<svg viewBox="0 0 88 64"><rect x="32" y="24" width="24" height="16" rx="3" style="fill:var(--c-orch-soft);stroke:var(--c-orch)"/><rect x="6" y="6" width="18" height="12" rx="2" style="fill:var(--c-prof)"/><rect x="64" y="6" width="18" height="12" rx="2" style="fill:var(--c-ver)"/><rect x="6" y="46" width="18" height="12" rx="2" style="fill:var(--c-xf)"/><rect x="64" y="46" width="18" height="12" rx="2" style="fill:var(--c-opt)"/><path d="M24 14 L34 26 M64 14 L54 26 M24 50 L34 38 M64 50 L54 38" class="w-thin"/></svg>`,
+  };
+  const MODULES = [
+    { id: "m1", wk: "Weeks 1–2", t: "Digital logic & CMOS", track: "Foundations", th: "gate", fig: "Figs 3–4",
+      topics: ["Boolean algebra, truth tables, Karnaugh maps", "CMOS transistors as switches; building gates", "Adders, multiplexers, decoders"], lab: "Build a 4-bit ripple-carry adder in Verilog and simulate it with Icarus Verilog and GTKWave." },
+    { id: "m2", wk: "Week 3", t: "Sequential logic & FSMs", track: "Foundations", th: "ff", fig: "Figs 5–6",
+      topics: ["Latches, flip-flops, registers, clocking", "Moore vs Mealy state machines", "Counters, shift registers"], lab: "Traffic-light controller FSM; then a UART transmitter running on an FPGA board." },
+    { id: "m3", wk: "Weeks 4–5", t: "Hardware description languages", track: "Foundations", th: "code", fig: "Fig 2.4",
+      topics: ["Synthesizable Verilog/SystemVerilog subset", "Blocking vs non-blocking assignment", "Modern HDLs: Chisel, Amaranth"], lab: "ALU and register file with parameterized width." },
+    { id: "m4", wk: "Weeks 6–7", t: "Computer architecture", track: "Architecture", th: "cpu", fig: "Figs 7, 9",
+      topics: ["Datapath and control; the RISC-V ISA", "5-stage pipeline, hazards, forwarding", "Caches and the memory hierarchy"], lab: "Single-cycle then pipelined RV32I core that runs a small C program." },
+    { id: "m5", wk: "Week 8", t: "Verification", track: "Verification", th: "check", fig: "Step 4 of the flow",
+      topics: ["Directed vs constrained-random testing", "Assertions, coverage, scoreboards", "Python testbenches with cocotb; intro to formal"], lab: "cocotb testbench that finds a planted bug in the ALU from Module 3." },
+    { id: "m6", wk: "Week 9", t: "FPGA architecture & timing", track: "Implementation", th: "fpga", fig: "Figs 8, 10",
+      topics: ["LUTs, BRAM, DSP blocks, routing", "Static timing analysis, critical paths", "Reading utilization and timing reports"], lab: "Close timing on the pipelined core at a higher clock by adding pipeline registers." },
+    { id: "m7", wk: "Weeks 10–11", t: "High-level synthesis & accelerators", track: "Accelerators", th: "sys", fig: "Figs 12–14",
+      topics: ["Pipelining, II, unrolling, array partitioning", "Dataflow, streams, AXI interfaces", "Patterns: systolic arrays, stencils, reductions"], lab: "GEMM accelerator in Vitis HLS or Bambu; report latency vs a CPU baseline." },
+    { id: "m8", wk: "Week 12", t: "Physical design (ASIC)", track: "Implementation", th: "chip", fig: "Figs 2.7, 11",
+      topics: ["Standard cells, floorplanning, placement", "Clock trees, routing, DRC/LVS", "Open PDKs (SKY130, GF180)"], lab: "Take the ALU through OpenLane to a GDSII layout and inspect it in KLayout." },
+    { id: "m9", wk: "Week 13", t: "Hardware/software co-design", track: "Architecture", th: "link", fig: "Fig 2",
+      topics: ["Host-accelerator interfaces and drivers", "Amdahl's law and what is worth offloading", "Profiling the software first"], lab: "Offload the GEMM accelerator from a host program and measure the end-to-end speed-up." },
+    { id: "m10", wk: "Week 14", t: "AI for chip design", track: "Accelerators", th: "ai", fig: "Fig 15",
+      topics: ["LLM agents for HLS and RTL generation", "ML cost models for design-space exploration (e.g. GNN-based)", "Verification of AI-written hardware"], lab: "Run ChipDesignAgent on a kernel, then extend one of its tools (Section 07)." },
+  ];
+  const TRACKS = ["All", "Foundations", "Architecture", "Verification", "Implementation", "Accelerators"];
+  let track = "All", done = {};
+  try { done = JSON.parse(localStorage.getItem("cdc-done") || "{}") || {}; } catch (e) { done = {}; }
+  const chips = $("#trackChips");
+  TRACKS.forEach((t) => {
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "chip"; b.textContent = t; b.setAttribute("aria-pressed", String(t === track));
+    b.onclick = () => { track = t; [...chips.children].forEach((c) => c.setAttribute("aria-pressed", String(c.textContent === t))); renderModules(); };
+    chips.appendChild(b);
+  });
+  function renderModules() {
+    const box = $("#modules");
+    box.innerHTML = MODULES.filter((m) => track === "All" || m.track === track).map((m) => `
+      <article class="mod ${done[m.id] ? "is-done" : ""}">
+        <div class="thumb">${thumbs[m.th]}</div>
+        <div class="body">
+          <div class="top"><h3>${m.t}</h3><label class="done"><input type="checkbox" id="done-${m.id}" data-id="${m.id}" ${done[m.id] ? "checked" : ""}> done</label></div>
+          <div class="tags"><span class="tag">${m.wk}</span><span class="tag track">${m.track}</span><span class="tag">see ${m.fig}</span></div>
+          <ul>${m.topics.map((t) => `<li>${t}</li>`).join("")}</ul>
+          <div class="lab"><b>LAB</b>${m.lab}</div>
+        </div>
+      </article>`).join("");
+    box.querySelectorAll("input[type=checkbox]").forEach((cb) => cb.addEventListener("change", () => {
+      done[cb.dataset.id] = cb.checked;
+      try { localStorage.setItem("cdc-done", JSON.stringify(done)); } catch (e) {}
+      renderModules();
+    }));
+    const n = MODULES.filter((m) => done[m.id]).length;
+    $("#progText").textContent = `${n} of ${MODULES.length} modules done`;
+    $("#progBar").style.width = (100 * n / MODULES.length) + "%";
+  }
+  renderModules();
+
+  /* ---------------- agent panel ---------------- */
+  const AGENTS = {
+    orch: { name: "Orchestrator", color: "var(--c-orch)", role: "Takes the user's request and delegates each job to a specialist with exact file paths and function names. It reads each report back and decides the next step, retrying failed verifications up to three times.",
+      tools: ["profiling_agent", "optimization_agent", "transform_agent", "verification_agent", "list_files", "read_file"], week: "The whole flow (Section 04)", },
+    prof: { name: "Profiling agent", color: "var(--c-prof)", role: "Finds every loop nest, computes trip counts and operation counts, and ranks the nests by cost. It also classifies each nest as gemm, stencil, reduction or elementwise, which decides which optimizer fits.",
+      tools: ["analyze_kernel", "read_file", "list_files"], week: "Week 9 (bottlenecks) and Weeks 10–11 (patterns)" },
+    xf: { name: "Code transformation agent", color: "var(--c-xf)", role: "Rewrites the kernel as synthesizable HLS C++ with the same function signature, applying the optimization plan. It then runs a lint that flags malloc, recursion, STL containers, I/O and missing interface pragmas, and fixes any errors.",
+      tools: ["read_file", "write_file", "lint_hls", "hls_pragma_reference"], week: "Weeks 10–11 (HLS)" },
+    opt: { name: "Optimization agent", color: "var(--c-opt)", role: "Checks which optimizers are installed and gets pattern-based advice (tiling, loop order, PIPELINE/UNROLL/ARRAY_PARTITION, line buffers, AutoSA array sizes). It runs AutoSA, HARP, Prometheus or LIFT when configured, and HLS synthesis when Vitis is available.",
+      tools: ["list_optimizers", "suggest_directives", "run_autosa", "run_external_optimizer", "run_hls_synthesis"], week: "Weeks 10–11 and the Fig 13–14 patterns" },
+    ver: { name: "Testing / verification agent", color: "var(--c-ver)", role: "Generates a C++ testbench that runs the original kernel and the HLS version on the same random inputs, compiles it, and compares every output array. It reports VERIFIED, FAILED (with the mismatching values) or BLOCKED.",
+      tools: ["generate_testbench", "run_testbench", "compile_and_run"], week: "Week 8 (verification)" },
+  };
+  const panel = $("#agentPanel");
+  const nodes = document.querySelectorAll(".agent-diagram g.node");
+  function showAgent(k) {
+    const a = AGENTS[k];
+    nodes.forEach((n) => n.setAttribute("aria-pressed", String(n.dataset.agent === k)));
+    panel.style.borderLeftColor = a.color;
+    panel.innerHTML = `<h3>${a.name}</h3><p>${a.role}</p><div class="toolchips">${a.tools.map((t) => `<code>${t}</code>`).join("")}</div><p style="font-size:.88rem;color:var(--muted)">Automates course material from: <b style="color:var(--ink)">${a.week}</b></p>`;
+  }
+  nodes.forEach((n) => {
+    n.addEventListener("click", () => showAgent(n.dataset.agent));
+    n.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); showAgent(n.dataset.agent); } });
+  });
+  showAgent("orch");
+
+  /* ---------------- run walkthrough ---------------- */
+  const RUN = [
+    { who: "orch", title: "Request arrives", body: "The user asks the orchestrator to accelerate <code>gemm.c</code>. It starts by sending the file to the profiling agent.",
+      pre: `user > Accelerate the kernel in 'gemm.c'. Profile it, optimize it,\n       write an HLS version and verify it against the original.` },
+    { who: "prof", title: "Bottleneck analysis and pattern matching", body: "<code>analyze_kernel</code> finds two loop nests. The triple nest that does the multiply-add accounts for more than 99% of the work and is classified as a matrix multiply.",
+      pre: `analyze_kernel("gemm.c")\n  hottest nest : gemm, depth 3, 262,144 iterations\n  pattern      : gemm   M=64 N=64 K=64   reduction var = k\n  statement    : C[i][j] += A[i][k] * B[k][j]\n  recommended  : autosa, harp, prometheus` },
+    { who: "opt", title: "Optimization plan", body: "AutoSA isn't installed on this machine, so the optimization agent uses the built-in rules. For a matrix multiply that means tiling, moving the reduction loop outward so the inner loop has no dependence, and pipelining. It also prepares the AutoSA configuration for later.",
+      pre: `suggest_directives("gemm.c")\n  - tile i/j/k by 32/32/32, keep a local tile of C on chip\n  - reorder to i-k-j so the inner loop has no loop-carried dependence\n  - #pragma HLS PIPELINE II=1        (inner j loop)\n  - #pragma HLS ARRAY_PARTITION ... cyclic factor=16 dim=2\n  autosa sa_sizes: {kernel[]->space_time[3];kernel[]->array_part[32,32,32];\n                    kernel[]->latency[8,8];kernel[]->simd[4]}\nrun_autosa(...) -> not_available (set AUTOSA_ROOT)` },
+    { who: "xf", title: "SW → HLS transformation", body: "The transformation agent writes <code>gemm_hls.cpp</code>: interface pragmas, a local row buffer, i-k-j order and a pipelined inner loop. The lint finds no errors.",
+      pre: `write_file("gemm_hls.cpp", ...)\nlint_hls("gemm_hls.cpp", "gemm_hls")\n  synthesizable: true   errors: 0\n  pragmas: INTERFACE x4, ARRAY_PARTITION, PIPELINE, UNROLL` },
+    { who: "ver", title: "Testbench and C-simulation", body: "The verification agent generates a testbench that runs both versions on identical random matrices and compares C element by element.",
+      pre: `generate_testbench("gemm.c","gemm","gemm_hls.cpp","gemm_hls")\nrun_testbench("gemm_hls_tb.cpp")\n  C: 4096 elements, 0 mismatches\n  PASS`, verdict: ["ok", "VERIFIED"] },
+    { who: "ver", title: "What a bug looks like", body: "If the transformation agent had written <code>k &lt; K - 1</code>, the same check fails and the orchestrator sends the mismatch report back to the transformation agent to fix. The project's tests check this case.",
+      pre: `run_testbench("buggy_tb.cpp")\n  MISMATCH C[0]: ref=... cand=...\n  ...\n  FAIL: 4096 mismatches     -> back to transform_agent (attempt 1 of 3)`, verdict: ["bad", "FAILED → loop"] },
+    { who: "orch", title: "Final report", body: "The orchestrator summarizes the hot spot, the optimizations applied, the files written, and the verification result. Next steps are synthesis for latency and resources, or AutoSA for a full systolic array (Fig 13).",
+      pre: `workspace/\n  gemm.c            original\n  gemm_hls.cpp      HLS version\n  gemm_hls_tb.cpp   equivalence testbench\n  build/            simulation binary` },
+  ];
+  let ri = 0;
+  function renderRun() {
+    const r = RUN[ri], a = AGENTS[r.who];
+    $("#runBox").innerHTML = `<div class="run-step">
+      <span class="who" style="background:${a.color};${r.who === "orch" ? "color:#3a2f10" : ""}">${a.name}</span>
+      <h3>${ri + 1}. ${r.title} ${r.verdict ? `<span class="verdict-${r.verdict[0]}">· ${r.verdict[1]}</span>` : ""}</h3>
+      <p>${r.body}</p><pre>${esc(r.pre)}</pre></div>`;
+    $("#rPos").textContent = `step ${ri + 1} of ${RUN.length}`;
+    $("#rPrev").disabled = ri === 0; $("#rNext").disabled = ri === RUN.length - 1;
+    showAgent(r.who);
+  }
+  $("#rPrev").onclick = () => { ri = Math.max(0, ri - 1); renderRun(); };
+  $("#rNext").onclick = () => { ri = Math.min(RUN.length - 1, ri + 1); renderRun(); };
+  renderRun();
+
+  /* ---------------- Example 1: encoding ---------------- */
+  (function () {
+    const F = [["funct7", "0000000", 7, "add (not sub)"], ["rs2", "00010", 5, "x2"], ["rs1", "00001", 5, "x1"], ["funct3", "000", 3, "add/sub"], ["rd", "00011", 5, "x3"], ["opcode", "0110011", 7, "R-type ALU op"]];
+    const bw = 12.4, x0 = 12;
+    let s = "", x = x0, bit = 31;
+    F.forEach(([name, bits, n, mean], i) => {
+      const w = n * bw;
+      s += `<rect x="${x}" y="40" width="${w}" height="40" class="${i === 5 ? "f-soft" : "f-surf"}" style="stroke-width:1.2"/>`;
+      [...bits].forEach((b, k) => { s += `<text x="${x + k * bw + bw / 2}" y="65" class="t t-mid" style="font-size:11px">${b}</text>`; });
+      s += `<text x="${x + w / 2}" y="32" class="t-s t-mid">${name}</text>`;
+      s += `<text x="${x + 2}" y="94" class="t-s" style="font-size:9px">${bit}</text>`;
+      s += `<path d="M${x + w / 2} 82 V${110 + (i % 2) * 22}" class="w-thin"/>`;
+      s += `<text x="${x + w / 2}" y="${122 + (i % 2) * 22}" class="t-acc t-mid" style="font-size:11px">${mean}</text>`;
+      x += w; bit -= n;
+    });
+    s += `<text x="${x - 2}" y="94" class="t-s" text-anchor="end" style="font-size:9px">0</text>`;
+    s += `<text x="12" y="176" class="t-s">hex: 0x002081B3 · 32 bits · fixed fields make decoding fast and cheap</text>`;
+    $("#encFields").innerHTML = s;
+  })();
+
+  /* ---------------- Example 1: pipeline stepper ---------------- */
+  const CPU = [
+    { st: "IF", title: "Fetch", text: "The program counter (PC = 0x1000) addresses the instruction memory, and the 32-bit word <code>0x002081B3</code> comes out. The PC adder computes 0x1004 for the next cycle. No decision has been made yet: the bits are just carried forward." },
+    { st: "ID", title: "Decode and read registers", text: "The opcode <code>0110011</code> tells the control logic this is a register-register ALU instruction. Bits 19–15 and 24–20 go straight into the register file's read ports and select <code>x1</code> = 5 and <code>x2</code> = 7. Decoding is a few gates, not a lookup in software." },
+    { st: "EX", title: "Execute in the ALU", text: "<code>funct3</code> and <code>funct7</code> set the ALU's multiplexers to <i>add</i>. The 32-bit adder produces 12 within one clock cycle. This is the only stage doing the work the programmer asked for; the others exist to move data and instructions." },
+    { st: "MEM", title: "Memory (skipped)", text: "An <code>add</code> doesn't touch data memory, so the result passes through. A <code>lw</code> or <code>sw</code> would read or write the data cache here, which is where most real stalls happen (Fig 9)." },
+    { st: "WB", title: "Write back", text: "The value 12 is written into register <code>x3</code> on the next clock edge. Five cycles after fetch, <code>c = a + b</code> has happened. Meanwhile the four following instructions are already in the earlier stages." },
+    { st: "ALU", title: "Inside the adder: down to transistors", text: "The 32-bit adder is 32 one-bit <b>full adders</b>, each built from an XOR, AND and OR network like Fig 2.5. A standard static CMOS full adder uses 28 transistors, so even a simple ripple-carry adder is about 900 transistors. Fast CPUs use larger carry-lookahead adders so the carry doesn't ripple through all 32 bits. When the clock ticks, those transistors charge and discharge tiny wires. That is the physical event behind <code>c = a + b</code>." },
+  ];
+  let ci = 0;
+  function renderCpu() {
+    const c = CPU[ci];
+    const boxes = [["IF", "Instr.", "memory", 14], ["ID", "Register", "file", 96], ["EX", "ALU", "", 178], ["MEM", "Data", "memory", 260], ["WB", "Write", "back", 342]];
+    let s = "";
+    boxes.forEach(([st, a, b, x]) => {
+      const on = c.st === st || (c.st === "ALU" && st === "EX");
+      s += `<rect x="${x}" y="40" width="64" height="70" rx="6" class="${on ? "f-soft" : "f-surf"}" ${on ? 'style="stroke-width:2.6"' : ""}/>`;
+      s += `<text x="${x + 32}" y="30" class="t-acc t-mid">${st}</text><text x="${x + 32}" y="72" class="t t-mid" style="font-size:11px">${a}</text><text x="${x + 32}" y="88" class="t t-mid" style="font-size:11px">${b}</text>`;
+      if (x < 342) s += `<rect x="${x + 68}" y="36" width="8" height="78" class="f-sunk" style="stroke:var(--ink)"/><path d="M${x + 64} 75 H${x + 68}" class="w"/><path d="M${x + 76} 75 H${x + 82}" class="w" marker-end="url(#arr)"/>`;
+    });
+    s += `<path d="M374 110 V128 H128 V110" class="w-dash" marker-end="url(#arr)"/><text x="250" y="142" class="t-s t-mid">x3 ← 12 written back to the register file</text>`;
+    s += `<text x="80" y="122" class="t-s">pipeline registers (grey) hold</text>`;
+    if (c.st === "ALU") {
+      // zoom: full adder chain
+      s += `<path d="M210 112 L120 158 M210 112 L380 158" class="w-dash"/>`;
+      for (let k = 0; k < 8; k++) {
+        const x = 120 + k * 33;
+        s += `<rect x="${x}" y="160" width="26" height="26" rx="3" class="f-soft" style="stroke-width:1"/><text x="${x + 13}" y="177" class="t-s t-mid">FA</text>`;
+        if (k < 7) s += `<path d="M${x + 26} 173 H${x + 33}" class="w-acc"/>`;
+      }
+      s += `<text x="250" y="206" class="t-s t-mid">32 full adders × 28 transistors ≈ 900 switches</text>`;
+    } else {
+      s += `<text x="14" y="176" class="t-s">cycle:</text>`;
+      const order = ["IF", "ID", "EX", "MEM", "WB"];
+      const cur = order.indexOf(c.st);
+      for (let k = 0; k < 5; k++) {
+        const x = 70 + k * 66;
+        s += `<rect x="${x}" y="162" width="58" height="22" rx="4" class="${k === cur ? "f-soft" : k < cur ? "f-sunk" : "f-surf"}" style="stroke-width:1"/><text x="${x + 29}" y="177" class="t-s t-mid">${k + 1}: ${order[k]}</text>`;
+      }
+      s += `<text x="70" y="206" class="t-s">at 1 GHz each box is 1 ns</text>`;
+    }
+    $("#cpuFig").innerHTML = s;
+    $("#cpuText").innerHTML = `<span class="eyebrow">${c.st === "ALU" ? "Zoom in" : "Cycle " + (ci + 1) + " · " + c.st}</span><h3>${c.title}</h3><p>${c.text}</p>`;
+    $("#cpuPos").textContent = `${ci + 1} of ${CPU.length}`;
+    $("#cpuPrev").disabled = ci === 0; $("#cpuNext").disabled = ci === CPU.length - 1;
+  }
+  $("#cpuPrev").onclick = () => { ci = Math.max(0, ci - 1); renderCpu(); };
+  $("#cpuNext").onclick = () => { ci = Math.min(CPU.length - 1, ci + 1); renderCpu(); };
+  renderCpu();
+
+  /* ---------------- Example 2: four machines ---------------- */
+  const blk = (x, y, w, cls, label) => `<rect x="${x}" y="${y}" width="${w - 2}" height="18" rx="3" class="${cls}" style="stroke-width:.8"/>${label ? `<text x="${x + (w - 2) / 2}" y="${y + 13}" class="t-s t-mid" style="font-size:9px">${label}</text>` : ""}`;
+  const M4 = {
+    cpu: { name: "CPU", cap: "One core runs the loop as instructions. Most boxes are bookkeeping (load, store, index, branch); one in five is the add.",
+      text: "<p>The compiler emits a loop of about five instructions per element: two loads, the add, a store, and an increment-and-branch. Each goes through fetch and decode (Example 1). A modern core overlaps several and adds SIMD instructions that do 8–16 adds at once, but the energy spent <b>deciding what to do</b> still dwarfs the add itself.</p><p><b>Strength:</b> runs any program, so you can change the code in seconds.</p>",
+      svg() { let s = `<text x="10" y="20" class="t-s">one core · time →</text>`; const ops = [["ld", "f-surf"], ["ld", "f-surf"], ["add", "f-soft"], ["st", "f-surf"], ["i++", "f-sunk"]]; for (let e = 0; e < 3; e++) ops.forEach(([l, c], k) => { const n = e * 5 + k; s += blk(10 + (n % 15) * 27, 40 + e * 26, 27, c, l); }); s += `<text x="10" y="134" class="t-s">… repeated 1,024 times (fewer with SIMD)</text>`; s += `<rect x="10" y="160" width="260" height="22" rx="3" class="f-sunk"/><rect x="10" y="160" width="52" height="22" rx="3" class="f-soft"/><text x="70" y="175" class="t-s">≈ 1 useful op in 5</text>`; return s; } },
+    gpu: { name: "GPU", cap: "Thousands of threads each handle one element. Groups of 32 lanes share one instruction stream.",
+      text: "<p>The loop becomes a <b>kernel</b> launched over 1,024 threads. Hardware groups threads into warps of 32 that execute the same instruction in lock-step, so one fetch and decode drives 32 adds. Memory bandwidth, not arithmetic, usually limits a kernel this simple.</p><p><b>Strength:</b> huge throughput on regular, data-parallel work. <b>Cost:</b> moving the data to the GPU and back.</p>",
+      svg() { let s = `<text x="10" y="20" class="t-s">32 lanes per warp · time →</text>`; for (let lane = 0; lane < 8; lane++) { const y = 32 + lane * 18; [["ld", "f-surf"], ["ld", "f-surf"], ["add", "f-soft"], ["st", "f-surf"]].forEach(([l, c], k) => { s += `<rect x="${60 + k * 60}" y="${y}" width="56" height="14" rx="2" class="${c}" style="stroke-width:.7"/>`; if (lane === 0) s += `<text x="${88 + k * 60}" y="${y + 11}" class="t-s t-mid" style="font-size:9px">${l}</text>`; }); s += `<text x="52" y="${y + 11}" class="t-s" text-anchor="end" style="font-size:9px">lane ${lane}</text>`; } s += `<text x="60" y="186" class="t-s">⋮ ×32 lanes, ×32 warps · one decode drives 32 adds</text>`; s += `<text x="60" y="206" class="t-s">≈ 1,024 adds done in ~4 steps per warp</text>`; return s; } },
+    fpga: { name: "FPGA (HLS)", cap: "HLS turns the loop body into a pipelined circuit. After it fills, one element finishes every clock cycle, or 8 per cycle when unrolled ×8.",
+      text: "<p>With <code>#pragma HLS PIPELINE II=1</code>, the HLS tool builds a datapath with exactly the operations the loop needs: read ports for <code>a</code> and <code>b</code>, one floating-point adder, and a write port. There are no instructions. The loop becomes a circuit that accepts a new <code>i</code> every cycle (Fig 12).</p><p><b>Strength:</b> no fetch or decode overhead and a custom memory layout. <b>Cost:</b> each design change means re-running synthesis, which takes minutes to hours.</p>",
+      svg() { let s = `<text x="10" y="20" class="t-s">pipeline · new element every cycle →</text>`; const st = [["rd", "f-surf"], ["add", "f-soft"], ["add", "f-soft"], ["wr", "f-surf"]]; for (let e = 0; e < 7; e++) st.forEach(([l, c], k) => { s += blk(70 + (e + k) * 30, 34 + e * 22, 30, c, l); }); for (let e = 0; e < 7; e++) s += `<text x="62" y="${47 + e * 22}" class="t-s" text-anchor="end" style="font-size:9px">c[${e}]</text>`; s += `<text x="70" y="206" class="t-s">≈ 1,024 cycles + 4 to fill (or ≈ 128 with ×8 unroll)</text>`; return s; } },
+    asic: { name: "ASIC", cap: "A fixed-function circuit: banks of adders wired directly to memories. No configuration overhead, so it runs at a higher clock and uses less energy than the FPGA.",
+      text: "<p>The same pipelined datapath, built from standard cells instead of lookup tables. Without programmable routing it runs at a higher clock (often several times an FPGA's) and uses much less energy per add. Designers usually make it wider, for example 16 adders fed by 16 memory banks.</p><p><b>Strength:</b> the most performance per watt. <b>Cost:</b> months of design and verification, a fabrication run, and it can never change. Worth it only for workloads that run billions of times, like video codecs or neural-network layers.</p>",
+      svg() { let s = `<text x="10" y="20" class="t-s">fixed datapath · 8 of 16 lanes shown</text>`; for (let k = 0; k < 8; k++) { const x = 20 + k * 48; s += `<rect x="${x}" y="34" width="40" height="22" rx="3" class="f-sunk" style="stroke:var(--ink)"/><text x="${x + 20}" y="49" class="t-s t-mid" style="font-size:9px">bank ${k}</text><path d="M${x + 20} 56 V78" class="w" marker-end="url(#arr)"/><circle cx="${x + 20}" cy="94" r="13" class="f-soft"/><text x="${x + 20}" y="98" class="t-s t-mid">+</text><path d="M${x + 20} 107 V128" class="w" marker-end="url(#arr)"/><rect x="${x}" y="130" width="40" height="22" rx="3" class="f-sunk" style="stroke:var(--ink)"/><text x="${x + 20}" y="145" class="t-s t-mid" style="font-size:9px">out ${k}</text>`; } s += `<text x="20" y="182" class="t-s">every gate does useful work on every cycle</text>`; s += `<text x="20" y="202" class="t-s">≈ 64 cycles at 16 lanes · highest clock, lowest energy</text>`; return s; } },
+  };
+  const m4Tabs = $("#m4Tabs");
+  function showM4(k) {
+    [...m4Tabs.children].forEach((b) => b.setAttribute("aria-selected", String(b.dataset.k === k)));
+    const m = M4[k];
+    $("#m4Fig").innerHTML = m.svg();
+    $("#m4Cap").innerHTML = `<span class="figno">FIG 1.${k === "cpu" ? "5a" : k === "gpu" ? "5b" : k === "fpga" ? "5c" : "5d"}</span><b>${m.name}.</b> ${m.cap}`;
+    $("#m4Text").innerHTML = `<h3>${m.name}</h3>${m.text}`;
+  }
+  Object.entries(M4).forEach(([k, v]) => { const b = document.createElement("button"); b.type = "button"; b.setAttribute("role", "tab"); b.id = "m4-" + k; b.dataset.k = k; b.textContent = v.name; b.onclick = () => showM4(k); m4Tabs.appendChild(b); });
+  showM4("cpu");
+
+  /* ---------------- Example 3: clock squiggle ---------------- */
+  (function () { let p = "80,212"; for (let x = 80; x < 410; x += 8) p += ` ${x},212 ${x},196 ${x + 4},196 ${x + 4},212`; $("#blinkClk").innerHTML = `<polyline points="${p}" class="w-thin"/>`; })();
+
+  /* ---------------- Example 4: weight-stationary engine ---------------- */
+  (function () {
+    let s = ""; const x0 = 110, y0 = 30, d = 52;
+    for (let r = 0; r < 4; r++) for (let c = 0; c < 5; c++) {
+      const x = x0 + c * d, y = y0 + r * 40;
+      s += `<rect x="${x}" y="${y}" width="40" height="30" rx="4" class="f-surf" style="stroke-width:1.1"/><rect x="${x + 4}" y="${y + 4}" width="14" height="10" rx="2" class="f-acc"/><text x="${x + 28}" y="${y + 22}" class="t-s t-mid" style="font-size:9px">×+</text>`;
+      if (c < 4) s += `<path d="M${x + 40} ${y + 15} H${x + d - 2}" class="w-thin" marker-end="url(#arr)"/>`;
+      if (r < 3) s += `<path d="M${x + 20} ${y + 30} V${y + 38}" class="w-acc" marker-end="url(#arr-acc)"/>`;
+    }
+    for (let r = 0; r < 4; r++) s += `<text x="${x0 - 14}" y="${y0 + r * 40 + 19}" class="t" text-anchor="end">x${r}</text><path d="M${x0 - 10} ${y0 + r * 40 + 15} H${x0 - 2}" class="w" marker-end="url(#arr)"/>`;
+    for (let c = 0; c < 5; c++) s += `<path d="M${x0 + c * d + 20} ${y0 + 150} V${y0 + 168}" class="w-acc" marker-end="url(#arr-acc)"/><text x="${x0 + c * d + 20}" y="${y0 + 184}" class="t-acc t-mid">y${c}</text>`;
+    s += `<rect x="10" y="190" width="14" height="10" rx="2" class="f-acc"/><text x="30" y="199" class="t-s">weight W[i][j], loaded once</text>`;
+    s += `<text x="10" y="216" class="t-s">inputs x flow right · partial sums flow down → ReLU</text>`;
+    $("#mmFig").innerHTML = s;
+  })();
+
+  /* ---------------- Kit: timeline ---------------- */
+  (function () {
+    const st = [
+      ["Breadboard", "weeks 1–3", "74HC logic, MOSFETs"],
+      ["Entry FPGA", "weeks 3–9", "iCEBreaker / Basys 3"],
+      ["Soft-core SoC", "weeks 6–7", "RISC-V on Arty / ULX3S"],
+      ["FPGA SoC", "weeks 10–13", "PYNQ-Z2 / Kria KV260"],
+      ["Cloud FPGA", "project", "AWS F2 hours"],
+      ["Your chip", "tapeout wk 12", "shuttle tile + carrier"],
+    ];
+    let s = "";
+    st.forEach(([n, w, d], i) => {
+      const x = 10 + i * 148;
+      s += `<rect x="${x}" y="120" width="136" height="90" rx="8" class="${i === 5 ? "f-soft" : "f-surf"}"/>`;
+      s += `<text x="${x + 68}" y="146" class="t-b t-mid">${n}</text><text x="${x + 68}" y="166" class="t-acc t-mid" style="font-size:11px">${w}</text><text x="${x + 68}" y="190" class="t-s t-mid">${d}</text>`;
+      if (i < 5) s += `<path d="M${x + 136} 165 H${x + 146}" class="w" marker-end="url(#arr)"/>`;
+      const cx = x + 68;
+      // icons
+      if (i === 0) { s += `<rect x="${cx - 46}" y="30" width="92" height="64" rx="4" class="f-sunk"/>`; for (let r = 0; r < 5; r++) for (let c = 0; c < 10; c++) s += `<circle cx="${cx - 40 + c * 9}" cy="${38 + r * 6}" r="1.3" class="f-ink" style="opacity:.4"/>`; s += `<rect x="${cx - 30}" y="70" width="34" height="16" rx="2" class="f-ink"/><rect x="${cx + 10}" y="70" width="28" height="16" rx="2" class="f-ink"/><path d="M${cx - 20} 70 q10 -22 40 0" style="fill:none;stroke:var(--l-poly);stroke-width:2"/>`; }
+      if (i === 1 || i === 2 || i === 3) { s += `<rect x="${cx - 48}" y="28" width="96" height="70" rx="6" style="fill:var(--l-diff);opacity:.25;stroke:var(--l-diff)"/><rect x="${cx - 18}" y="44" width="36" height="36" rx="3" class="f-ink"/>`; if (i >= 2) s += `<rect x="${cx + 24}" y="38" width="18" height="12" rx="2" class="l-metal"/>`; if (i === 3) s += `<rect x="${cx - 42}" y="36" width="18" height="40" rx="2" class="f-soft"/>`; for (let k = 0; k < 4; k++) s += `<circle cx="${cx - 36 + k * 10}" cy="90" r="2.5" style="fill:var(--copper)"/>`; }
+      if (i === 4) { s += `<path d="M${cx - 40} 80 a18 18 0 0 1 6 -34 a24 24 0 0 1 44 -6 a18 18 0 0 1 30 20 a14 14 0 0 1 -6 20 z" class="f-surf"/><rect x="${cx - 12}" y="56" width="24" height="16" rx="2" class="f-ink"/>`; }
+      if (i === 5) { s += `<rect x="${cx - 30}" y="30" width="60" height="60" rx="4" class="f-soft"/><g class="w-thin">`; for (let k = 0; k < 5; k++) s += `<path d="M${cx - 22 + k * 11} 30 v-6 M${cx - 22 + k * 11} 90 v6 M${cx - 30} ${38 + k * 11} h-6 M${cx + 30} ${38 + k * 11} h6"/>`; s += `</g><rect x="${cx - 20}" y="40" width="18" height="18" class="l-metal"/><rect x="${cx + 2}" y="40" width="18" height="40" class="l-diff"/><rect x="${cx - 20}" y="62" width="18" height="18" class="l-poly"/>`; }
+    });
+    $("#kitTimeline").innerHTML = s;
+  })();
+
+  /* ---------------- Kit: bench illustration ---------------- */
+  (function () {
+    let s = "";
+    s += `<rect x="6" y="236" width="428" height="10" rx="3" class="f-sunk" style="stroke:var(--ink)"/>`;
+    // monitor
+    s += `<rect x="16" y="40" width="150" height="100" rx="6" class="f-surf"/><rect x="24" y="48" width="134" height="76" rx="3" class="f-sunk"/><path d="M30 60 H120 M30 72 H100 M30 84 H130 M30 96 H90" class="w-thin"/><path d="M91 140 V160 M66 160 H116" class="w"/><text x="91" y="30" class="t-s t-mid">PC: tools, programming</text>`;
+    // scope
+    s += `<rect x="190" y="70" width="124" height="80" rx="6" class="f-surf"/><rect x="198" y="78" width="80" height="54" rx="2" style="fill:var(--ink)"/><polyline points="202,112 214,112 214,92 236,92 236,112 258,112 258,92 274,92" style="fill:none;stroke:var(--l-diff);stroke-width:1.6"/><circle cx="294" cy="90" r="5" class="f-sunk" style="stroke:var(--ink)"/><circle cx="294" cy="110" r="5" class="f-sunk" style="stroke:var(--ink)"/><text x="252" y="62" class="t-s t-mid">oscilloscope</text>`;
+    // psu
+    s += `<rect x="330" y="96" width="96" height="54" rx="6" class="f-surf"/><text x="352" y="120" class="t" style="fill:var(--copper)">3.30V</text><text x="352" y="138" class="t-s">0.12A</text><circle cx="410" cy="126" r="5" style="fill:var(--l-poly)"/><text x="378" y="88" class="t-s t-mid">bench supply</text>`;
+    // board
+    s += `<rect x="150" y="186" width="120" height="48" rx="5" style="fill:var(--l-diff);opacity:.3;stroke:var(--l-diff)"/><rect x="194" y="196" width="28" height="28" rx="2" class="f-ink"/><text x="210" y="180" class="t-s t-mid">FPGA board</text>`;
+    // breadboard
+    s += `<rect x="290" y="196" width="100" height="38" rx="3" class="f-sunk"/><rect x="310" y="206" width="26" height="12" rx="1" class="f-ink"/><rect x="346" y="206" width="26" height="12" rx="1" class="f-ink"/><text x="340" y="190" class="t-s t-mid">breadboard</text>`;
+    // logic analyzer
+    s += `<rect x="40" y="200" width="56" height="30" rx="4" class="f-surf"/><text x="68" y="219" class="t-s t-mid">LA</text><text x="68" y="194" class="t-s t-mid">logic analyzer</text>`;
+    // dmm
+    s += `<rect x="404" y="176" width="28" height="56" rx="4" class="f-soft"/><text x="418" y="170" class="t-s t-mid">DMM</text>`;
+    // cables
+    s += `<path d="M91 160 Q120 200 150 206" style="fill:none;stroke:var(--muted);stroke-width:2"/><text x="112" y="176" class="t-s">USB</text>`;
+    s += `<path d="M96 214 Q120 230 152 222" style="fill:none;stroke:var(--copper);stroke-width:2;stroke-dasharray:2 2"/>`;
+    s += `<path d="M294 110 Q300 170 268 196" style="fill:none;stroke:var(--l-metal);stroke-width:2"/>`;
+    s += `<path d="M410 150 Q400 180 380 200" style="fill:none;stroke:var(--l-poly);stroke-width:2"/>`;
+    s += `<text x="220" y="268" class="t-s t-mid">one bench · two students · ESD mat underneath</text>`;
+    $("#benchFig").innerHTML = s;
+  })();
+
+  /* ---------------- Kit planner ---------------- */
+  const KIT = [
+    { stage: "Breadboard logic · weeks 1–3" },
+    { item: "Breadboard logic kit: breadboard, 74HC00/04/08/86 gates, 74HC74 flip-flops, 74HC161 counter, LEDs, resistors, DIP switches, jumpers", teach: "Gates, truth tables, a hand-wired adder and counter", wk: "1–3", per: "student", tier: "$" },
+    { item: "Complementary MOSFET pair (2N7000 NMOS + BS250 PMOS)", teach: "Build the CMOS inverter of Fig 3 and see it on the scope", wk: "1", per: "student", tier: "$" },
+    { item: "USB 5 V breadboard power module", teach: "Safe, current-limited power for logic chips", wk: "1–3", per: "student", tier: "$" },
+    { stage: "Entry FPGA · weeks 3–9" },
+    { item: { open: "iCEBreaker (iCE40UP5K) or Tang Nano 9K", vendor: "Digilent Basys 3 (Artix-7) or Terasic DE10-Lite (MAX 10)" }, teach: "HDL, FSMs, ALU, UART, timing reports", wk: "3–9", per: "student", tier: { open: "$–$$", vendor: "$$" } },
+    { item: "Peripheral pack: buttons, 7-segment / PMOD modules, USB-UART adapter, I²C sensor", teach: "Real I/O and serial protocols", wk: "3–9", per: "student", tier: "$" },
+    { stage: "Processor and SoC · weeks 6–7, 13" },
+    { item: { open: "Radiona ULX3S (ECP5) with LiteX", vendor: "Digilent Arty A7-100T or Nexys A7-100T" }, teach: "Pipelined RISC-V core, caches, booting software on your own CPU", wk: "6–7", per: "bench", tier: "$$" },
+    { item: "Raspberry Pi Pico 2 (RP2350, Arm or RISC-V cores)", teach: "Compare a real RISC-V chip with your soft core; later drives chip bring-up", wk: "6–7, 13+", per: "student", tier: "$" },
+    { stage: "Accelerators · weeks 10–13 and project" },
+    { item: { open: "ULX3S for small accelerators, plus cloud F2 hours", vendor: "TUL PYNQ-Z2 or AMD Kria KV260" }, teach: "HLS accelerators driven from a host CPU; co-design", wk: "10–13", per: "team", tier: "$$" },
+    { item: "Cloud FPGA hours (AWS F2) and cloud credits", teach: "Data-center scale accelerators and regressions (Section 08)", wk: "project", per: "team", tier: "$$ usage" },
+    { stage: "Silicon · tapeout week 12, bring-up after fabrication" },
+    { item: "Shuttle tile on an educational tapeout (e.g. Tiny Tapeout) or academic MPW slot", teach: "Full ASIC flow to GDSII on an open PDK", wk: "12", per: "team", tier: "$$–$$$" },
+    { item: "Chip carrier / demo board for the fabricated chip", teach: "Bring-up: testing real silicon against simulation", wk: "after fab", per: "team", tier: "$$" },
+    { stage: "Bench equipment · all stages" },
+    { item: "Digital multimeter", teach: "Voltages, continuity, first-line debugging", wk: "all", per: "bench", tier: "$" },
+    { item: "Bench power supply with current limit", teach: "Safe power for breadboards and boards", wk: "all", per: "bench", tier: "$$" },
+    { item: "USB logic analyzer, 8–16 channels (PulseView/sigrok)", teach: "Watching FSMs and decoding UART/SPI/I²C", wk: "2–13", per: "bench", tier: "$–$$" },
+    { item: "Digital oscilloscope, 2–4 channels, ≥100 MHz", teach: "Analog reality of digital signals, rise times, max clock", wk: "1, 9, bring-up", per: "bench", tier: "$$–$$$" },
+    { item: "ESD mat and wrist strap", teach: "Handling boards and bare chips safely", wk: "all", per: "bench", tier: "$" },
+    { item: "Soldering station", teach: "Headers, adapters, carrier boards", wk: "as needed", per: "4 benches", tier: "$$" },
+    { stage: "Computers" },
+    { item: "Linux workstation: 8+ cores, 32 GB RAM", teach: "Simulation, synthesis, place and route", wk: "all", per: "bench", tier: "$$$" },
+    { item: "Shared GPU server for local LLM agents (ChipDesignAgent)", teach: "Week 14 AI-for-EDA labs without sending code off-site", wk: "14", per: "lab", tier: "$$$$" },
+  ];
+  let kitTool = "open";
+  function qty(per, N) {
+    const benches = Math.ceil(N / 2), teams = Math.ceil(N / 4);
+    if (per === "student") return Math.ceil(N * 1.1);
+    if (per === "bench") return benches;
+    if (per === "team") return teams;
+    if (per === "4 benches") return Math.ceil(benches / 4);
+    return 1;
+  }
+  function renderKit() {
+    const N = +$("#kitN").value;
+    $("#kitNo").textContent = `${N} · ${Math.ceil(N / 2)} benches · ${Math.ceil(N / 4)} teams`;
+    $("#kitBody").innerHTML = KIT.map((k) => {
+      if (k.stage) return `<tr class="stage"><td colspan="6">${k.stage}</td></tr>`;
+      const item = typeof k.item === "string" ? k.item : k.item[kitTool];
+      const tier = typeof k.tier === "string" ? k.tier : k.tier[kitTool];
+      return `<tr><td>${item}</td><td>${k.teach}</td><td class="mono">${k.wk}</td><td>${k.per}</td><td class="qty">${qty(k.per, N)}</td><td class="tier">${tier}</td></tr>`;
+    }).join("");
+  }
+  $("#kitN").addEventListener("input", renderKit);
+  const setKit = (t) => { kitTool = t; $("#kitOpen").setAttribute("aria-pressed", t === "open"); $("#kitVendor").setAttribute("aria-pressed", t === "vendor"); renderKit(); };
+  $("#kitOpen").onclick = () => setKit("open"); $("#kitVendor").onclick = () => setKit("vendor");
+  renderKit();
+
+  /* ---------------- cloud providers ---------------- */
+  const PROVIDERS = {
+    aws: { name: "AWS", cards: [
+      { h: "FPGA hardware", pill: ["ok", "available"], p: "EC2 <b>F2</b> instances: up to 8 AMD Virtex UltraScale+ FPGAs, each with 16 GB of HBM, and up to 192 vCPUs and 2 TB of host memory. The first-generation <b>F1</b> was retired on 20 December 2025, so F1 designs must be rebuilt with current AMD tools." },
+      { h: "FPGA tooling", pill: ["ok", "open kit"], p: "The <code>aws-fpga</code> GitHub repository has the hardware and software development kits. Builds run on a CPU instance with Vivado/Vitis from the FPGA developer image, and the output is registered as an Amazon FPGA Image (AFI) you can load onto F2 or share." },
+      { h: "Compute and scheduling", pill: ["ok", "mature"], p: "AWS ParallelCluster (Slurm) or AWS Batch, with Spot Instances for regressions. Choose compute-optimized, high-frequency or high-memory families depending on whether the job is simulation or physical design." },
+      { h: "Storage and desktops", pill: ["ok", "available"], p: "FSx for NetApp ONTAP is a familiar NFS design tree for EDA teams. FSx for Lustre suits high-throughput scratch space. Research and Engineering Studio and Amazon DCV provide remote Linux desktops for waveform viewers and layout tools." },
+      { h: "Commercial EDA", pill: ["ok", "partners"], p: "Cadence Managed Cloud Services on AWS (fully managed). Synopsys Cloud also supports bringing your own AWS account. Other vendors publish reference deployments." },
+      { h: "Best for", pill: ["warn", "FPGA work"], p: "The only one of the three where you can still rent FPGAs for new projects. That makes it the natural choice for course projects that end in a real accelerator measurement." },
+    ]},
+    gcp: { name: "Google Cloud", cards: [
+      { h: "FPGA hardware", pill: ["no", "none"], p: "Google Cloud doesn't offer FPGA instances. Use it for simulation, implementation and ML workloads, and run FPGA tests on AWS or on lab boards." },
+      { h: "Compute and scheduling", pill: ["ok", "mature"], p: "Cluster Toolkit (formerly HPC Toolkit) deploys Slurm clusters from a blueprint. Batch and Spot VMs suit regressions, and compute-optimized and HPC machine families suit large simulation farms." },
+      { h: "Storage", pill: ["ok", "available"], p: "Filestore and NetApp Volumes provide NFS design trees, Managed Lustre provides high-throughput scratch, and Cloud Storage holds results and archives." },
+      { h: "Open silicon", pill: ["ok", "strong"], p: "Google funded the first open PDKs with SkyWater (SKY130) and GlobalFoundries (GF180MCU). It also develops the open-source XLS HLS toolchain and has published notebooks that run the OpenLane flow, which makes it a good fit for open-source course labs." },
+      { h: "Commercial EDA and AI", pill: ["ok", "new"], p: "Cadence's ChipStack AI Super Agent is on the Google Cloud Marketplace with Gemini integration (announced April 2026). Synopsys Cloud supports bringing your own Google Cloud account. TPUs and GPUs are available for training ML models for EDA." },
+      { h: "Best for", pill: ["warn", "open flows"], p: "Open-source ASIC flows, large simulation farms, and ML-for-EDA research." },
+    ]},
+    azure: { name: "Azure", cards: [
+      { h: "FPGA hardware", pill: ["no", "retiring"], p: "NP-series VMs (AMD Alveo U250) retire on <b>31 May 2027</b>, and new reservations ended on 2 April 2026. Microsoft suggests moving to GPU VMs, which means porting the workload, not resizing. Don't start new FPGA coursework here." },
+      { h: "Secure design workspace", pill: ["ok", "EDA-focused"], p: "<b>Azure Modeling and Simulation Workbench</b> is a managed, isolated workspace built for semiconductor and EDA teams. It includes a FlexLM license server, controlled data export and partner collaboration, and is offered in East US, Sweden Central and West US 3." },
+      { h: "Compute and scheduling", pill: ["ok", "mature"], p: "Azure CycleCloud (Slurm) or Azure Batch, with Spot VMs. HB and HX-series HPC VMs suit memory-heavy sign-off. Microsoft has also published EDA results on its own Cobalt 200 Arm processors." },
+      { h: "Storage", pill: ["ok", "available"], p: "Azure NetApp Files is the usual EDA design-tree store. Azure Managed Lustre provides high-throughput scratch, and Blob Storage holds archives." },
+      { h: "Commercial EDA and AI", pill: ["ok", "partners"], p: "Synopsys Cloud was built with Azure as a pay-per-use SaaS. Synopsys has also shown agentic chip-design workflows for evaluation on Microsoft Discovery. Cadence, Siemens and Keysight are partners in the workbench alliance." },
+      { h: "Best for", pill: ["warn", "secure teams"], p: "Teams that need a locked-down, auditable design environment with commercial tools, especially when several companies collaborate on one design." },
+    ]},
+  };
+  const provTabs = $("#provTabs"), provBody = $("#provBody");
+  function showProv(k) {
+    [...provTabs.children].forEach((b) => b.setAttribute("aria-selected", String(b.dataset.k === k)));
+    provBody.innerHTML = PROVIDERS[k].cards.map((c) => `<div class="card"><h4>${c.h}<span class="pill ${c.pill[0]}">${c.pill[1]}</span></h4><p>${c.p}</p></div>`).join("");
+    try { localStorage.setItem("cdc-prov", k); } catch (e) {}
+  }
+  Object.entries(PROVIDERS).forEach(([k, v]) => {
+    const b = document.createElement("button");
+    b.type = "button"; b.setAttribute("role", "tab"); b.dataset.k = k; b.id = "tab-" + k; b.textContent = v.name;
+    b.onclick = () => showProv(k);
+    provTabs.appendChild(b);
+  });
+  let startProv = "aws";
+  try { const s = localStorage.getItem("cdc-prov"); if (s && PROVIDERS[s]) startProv = s; } catch (e) {}
+  showProv(startProv);
+
+  /* ---------------- F2 flow figure ---------------- */
+  (function () {
+    const steps = [
+      ["Write", "RTL or HLS C++", "any machine", "f-surf"],
+      ["Build", "Vivado / Vitis", "CPU instance · hours", "f-surf"],
+      ["Create AFI", "register the image", "agfi-… id", "f-soft"],
+      ["Load", "fpga-load-local-image", "F2 instance · seconds", "f-soft"],
+      ["Run", "host program", "measure throughput", "f-soft"],
+    ];
+    let s = "";
+    steps.forEach((st, i) => {
+      const y = 10 + i * 46;
+      s += `<rect x="20" y="${y}" width="230" height="38" rx="7" class="${st[3]}" style="stroke-width:1.3"/>`;
+      s += `<text x="34" y="${y + 17}" class="t-b">${i + 1}. ${st[0]}</text><text x="34" y="${y + 31}" class="t-s">${st[1]}</text>`;
+      s += `<text x="262" y="${y + 24}" class="t-s">${st[2]}</text>`;
+      if (i < steps.length - 1) s += `<path d="M135 ${y + 38} V${y + 44}" class="w" marker-end="url(#arr)"/>`;
+    });
+    s += `<path d="M10 10 V86" style="stroke:var(--l-metal);stroke-width:4"/><path d="M10 102 V232" style="stroke:var(--copper);stroke-width:4"/>`;
+    s += `<text x="6" y="248" class="t-s">blue = cheap CPU time · copper = FPGA-related</text>`;
+    $("#f2flow").innerHTML = s;
+  })();
+
+  /* ---------------- regression fan-out figure ---------------- */
+  (function () {
+    let s = "";
+    s += `<rect x="10" y="100" width="70" height="44" rx="6" class="f-surf"/><text x="45" y="120" class="t-b t-mid">commit</text><text x="45" y="134" class="t-s t-mid">git push</text>`;
+    s += `<rect x="96" y="100" width="70" height="44" rx="6" class="f-sunk" style="stroke:var(--ink)"/><text x="131" y="120" class="t-b t-mid">image</text><text x="131" y="134" class="t-s t-mid">container</text>`;
+    s += `<path d="M80 122 H92" class="w" marker-end="url(#arr)"/>`;
+    const fails = new Set([7, 22]);
+    for (let r = 0; r < 6; r++) for (let c = 0; c < 5; c++) {
+      const i = r * 5 + c, x = 190 + c * 22, y = 34 + r * 30;
+      const bad = fails.has(i);
+      s += `<rect x="${x}" y="${y}" width="16" height="20" rx="3" style="fill:${bad ? "var(--bad)" : "var(--ok)"};opacity:${bad ? 1 : .55}"/>`;
+    }
+    s += `<path d="M166 122 L186 44 M166 122 H186 M166 122 L186 200" class="w-thin"/>`;
+    s += `<text x="244" y="22" class="t-s t-mid">30 parallel sims (spot)</text>`;
+    s += `<path d="M300 122 H312" class="w" marker-end="url(#arr)"/>`;
+    s += `<rect x="314" y="84" width="60" height="76" rx="6" class="f-soft"/><text x="344" y="108" class="t-b t-mid">report</text><text x="344" y="126" class="t-s t-mid">2 fail</text><text x="344" y="140" class="t-s t-mid">cov. 87%</text>`;
+    s += `<text x="190" y="236" class="t-s">example numbers, for illustration</text>`;
+    $("#fanout").innerHTML = s;
+  })();
+
+  /* ---------------- quiz ---------------- */
+  const QUIZ = [
+    { q: "A loop has 100 iterations, a 5-stage pipeline and II = 1. About how many cycles does it take?", o: ["500", "104", "100", "20"], a: 1, why: "depth + (N − 1) × II = 5 + 99 = 104. Without pipelining it would be 100 × 5 = 500." },
+    { q: "Why can't an HLS tool synthesize std::vector or malloc?", o: ["They are too slow", "Hardware size is fixed when the chip is built", "They are C++ only", "They use too many DSPs"], a: 1, why: "Hardware can't grow at run time. Every memory has to have a size known at synthesis time." },
+    { q: "What sets the maximum clock frequency of a design?", o: ["The number of registers", "The longest register-to-register logic path", "The size of the DRAM", "The number of pipeline stages"], a: 1, why: "The critical path (Fig 8). Pipelining raises the frequency by cutting that path with extra registers." },
+    { q: "Which job is the best fit for cheap, interruptible spot instances?", o: ["A day-long place-and-route run", "Thousands of short, independent regression simulations", "The FlexLM license server", "The shared design-tree file server"], a: 1, why: "Short simulations can be retried if a machine is reclaimed. Long jobs and always-on services belong on on-demand capacity." },
+    { q: "In ChipDesignAgent, which part makes sure the LLM's HLS code is still correct?", o: ["The orchestrator's prompt", "The optimization agent", "C-simulation against the original code", "Ollama"], a: 2, why: "The verification agent runs both versions on the same random inputs and compares outputs. A failure goes back to the transformation agent." },
+  ];
+  $("#quiz").innerHTML = QUIZ.map((q, i) => `<div class="q" data-i="${i}"><b>${i + 1}. ${q.q}</b><div class="opts">${q.o.map((o, j) => `<button type="button" data-j="${j}">${o}</button>`).join("")}</div><p class="fb" hidden></p></div>`).join("");
+  document.querySelectorAll(".q").forEach((box) => {
+    const q = QUIZ[+box.dataset.i];
+    box.querySelectorAll("button").forEach((b) => b.addEventListener("click", () => {
+      box.querySelectorAll("button").forEach((x) => x.classList.remove("right", "wrong"));
+      const j = +b.dataset.j;
+      b.classList.add(j === q.a ? "right" : "wrong");
+      if (j !== q.a) box.querySelectorAll("button")[q.a].classList.add("right");
+      const fb = box.querySelector(".fb"); fb.hidden = false;
+      fb.textContent = (j === q.a ? "Correct. " : "Not quite. ") + q.why;
+    }));
+  });
+})();
+</script>

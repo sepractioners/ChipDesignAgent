@@ -1,0 +1,17 @@
+[project]
+name = "chip-design-agent"
+version = "0.1.0"
+description = "Multi-agent SW->HLS flow (profiling, transformation, optimization, verification) on Google ADK"
+requires-python = ">=3.10"
+dependencies = [
+  "google-adk>=2.14",
+  "litellm>=1.70",
+  "ziglang>=0.13",   # bundled clang C++ compiler for C-simulation when g++/clang++ is absent
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8"]
+
+[tool.pytest.ini_options]
+pythonpath = ["agents"]
+testpaths = ["tests"]
